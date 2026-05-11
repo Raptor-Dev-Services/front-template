@@ -1,0 +1,22 @@
+@import "tailwindcss";
+@source "../../application-ui-v4/react/**/*.jsx";
+
+/* Force class-based dark mode — dark: variants only fire when an ancestor has class="dark".
+   Since this app never adds .dark, all dark: classes are permanently inactive.
+   Prevents OS dark mode from turning text white on white preview backgrounds. */
+@custom-variant dark (&:is(.dark *));
+
+/* Global canvas style for every component preview area.
+   transform: translate(0,0) makes this a containing block for position:fixed descendants —
+   overlay components (modals, drawers, notifications) are trapped inside their own card
+   instead of escaping to cover the whole viewport. */
+.component-preview {
+  position: relative;
+  min-height: 200px;
+  padding: 2rem;
+  background-color: #f1f5f9;
+  background-image: radial-gradient(circle, #cbd5e1 1px, transparent 1px);
+  background-size: 20px 20px;
+  transform: translate(0, 0);
+  isolation: isolate;
+}

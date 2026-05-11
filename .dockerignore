@@ -1,0 +1,21 @@
+node_modules
+dist
+.git
+.gitignore
+
+# Env overrides — only the specific env file is needed at build time
+.env
+.env.local
+.env.*.local
+
+# Dev tooling not needed in the image
+docs/
+*.md
+*.log
+coverage/
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
