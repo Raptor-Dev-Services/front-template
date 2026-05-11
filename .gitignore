@@ -52,9 +52,13 @@ coverage/
 # Claude Code
 .claude/
 
-# docs/Tailwind Plus — build artifacts, deps y carpetas no usadas en el proyecto
+# docs/Tailwind Plus — build artifacts y deps (nunca commitear binarios generados)
 docs/Tailwind Plus/component-library/node_modules/
 docs/Tailwind Plus/component-library/dist/
 docs/Tailwind Plus/component-library/.vite/
-# Website templates completos — pesados y no necesarios para referencia de componentes
-docs/Tailwind Plus/Modern website templates, crafted with Tailwind CSS/
+# node_modules y build outputs dentro de los website templates
+docs/Tailwind Plus/Modern website templates, crafted with Tailwind CSS/**/node_modules/
+docs/Tailwind Plus/Modern website templates, crafted with Tailwind CSS/**/.next/
+docs/Tailwind Plus/Modern website templates, crafted with Tailwind CSS/**/dist/
+docs/Tailwind Plus/Modern website templates, crafted with Tailwind CSS/**/.nuxt/
+docs/Tailwind Plus/Modern website templates, crafted with Tailwind CSS/**/out/
