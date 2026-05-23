@@ -1,13 +1,22 @@
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline'
 import { cx, ui } from '../../styles/designSystem'
+import { clearSession, getProfile } from '../../auth/session'
 
 const NAV_ITEMS = [
-  { label: 'Inicio', to: '/app' },
-  { label: 'Usuarios (ejemplo)', to: '/app/example/users' },
+  { label: 'Inicio',    to: '/app' },
+  { label: 'Usuarios',  to: '/app/example/users' },
 ]
 
 export default function AppNavbar() {
   const { pathname } = useLocation()
+  const navigate     = useNavigate()
+  const profile      = getProfile()
+
+  function handleLogout() {
+    clearSession()
+    navigate('/login', { replace: true })
+  }
 
   return (
     <header className={ui.layout.stickyTopBar}>
@@ -33,6 +42,25 @@ export default function AppNavbar() {
             )
           })}
         </nav>
+
+        <div className="ml-auto flex items-center gap-3">
+          {profile.email && (
+            <div className="hidden flex-col items-end sm:flex">
+              <span className={ui.typography.bodyStrong}>{profile.email}</span>
+              {profile.role && (
+                <span className={ui.badge.neutral}>{profile.role}</span>
+              )}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={handleLogout}
+            title="Cerrar sesión"
+            className={ui.controls.iconButton}
+          >
+            <ArrowRightOnRectangleIcon className="size-5" />
+          </button>
+        </div>
       </div>
     </header>
   )

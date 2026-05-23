@@ -27,23 +27,13 @@ src/
   api/              → Servicios HTTP por dominio + clientes Axios centrales
   auth/             → Gestión de sesión y token (session.js)
   components/       → Componentes por dominio
-    home/
+    example/        → Módulo de ejemplo (users CRUD)
     layout/         → Componentes globales de UI reutilizables
-      Desktop/      → Sub-componentes desktop del layout global
-      Mobile/       → Sub-componentes mobile del layout global
-      Shared/       → Compartidos entre Desktop y Mobile del layout global
-    loaders/        → Spinners y estados de carga (GTInlineLoader)
-    primitives/     → Átomos: Modal, FormField, Pagination, DataTable, ConfirmDialog
-    materials/
-    production/
-    quality/
-    reports/
-    systems/
-    tools/
+      Shared/       → Compartidos entre variantes del layout global
+    primitives/     → Átomos: Modal, FormField, Pagination
   config/           → Variables de entorno (env.js)
-  constants/        → Constantes globales
-  hooks/            → Hooks globales: useMediaQuery.js, useHomeDashboard.js, useLineNotifications.js
-  pages/            → Un archivo por ruta (QualityMaster.jsx, ProductionLostTime.jsx, etc.)
+  hooks/            → Hooks globales: useMediaQuery.js
+  pages/            → Un archivo por ruta
   routes/           → AppRoutes.jsx + wideRoutes.js
   styles/           → designSystem.js
   utils/            → dateTime.js, csv.js, index.js (barrel)
@@ -57,15 +47,12 @@ src/
 Cada módulo de dominio sigue esta estructura interna bajo `src/components/<dominio>/<modulo>/`:
 
 ```
-src/components/quality/master/
-  useQualityMaster.js         → Hook principal (estado, lógica, SignalR)
-  qualityMasterUtils.js       → Utilidades puras del módulo (formatDate, toRow, etc.)
+src/components/example/users/
+  useExampleUsers.js          → Hook principal (estado, lógica)
   Desktop/
-    MasterTableDesktop.jsx    → Tabla desktop
+    ExampleUsersTableDesktop.jsx  → Tabla desktop
   Mobile/
-    MasterCardsMobile.jsx     → Tarjetas mobile
-  Shared/
-    (componentes compartidos entre variantes si los hay)
+    ExampleUsersCardsMobile.jsx   → Tarjetas mobile
 ```
 
 El hook del módulo vive junto a sus componentes, no en `src/hooks/`. La página (`src/pages/`) solo importa el hook y los componentes compartidos.
@@ -89,8 +76,9 @@ El hook del módulo vive junto a sus componentes, no en `src/hooks/`. La página
 
 | Path proxy | Target (dev) | Variable de entorno |
 |---|---|---|
-| `/auth-api` | `http://example/api` | `VITE_DEV_AUTH_PROXY_TARGET` |
-| `/prod-api` | `http://example/api` | `VITE_DEV_PROD_PROXY_TARGET` |
+| `/api` | `http://localhost:5080` | `VITE_DEV_API_PROXY_TARGET` |
+
+Toda la comunicación (autenticación + datos) pasa por un único proxy apuntando al back-template.
 
 ---
 
@@ -98,33 +86,25 @@ El hook del módulo vive junto a sus componentes, no en `src/hooks/`. La página
 
 | Constante exportada | Variable VITE | Uso |
 |---|---|---|
-| `API_AUTH_BASE_URL` | `VITE_API_AUTH_BASE_URL` | Autenticación AD |
-| `API_PROD_BASE_URL` | `VITE_API_PROD_BASE_URL` | WebApi principal |
-| `API_REPORTS_BASE_URL` | `VITE_API_REPORTS_BASE_URL` | Servicio de reportes |
-| `API_PACKAGING_BASE_URL` | `VITE_API_PACKAGING_BASE_URL` | Servicio de empaque |
-| `API_NOTIFICATIONS_BASE_URL` | hardcoded `172.30.11.28:8082` | SignalR notificaciones |
-| `API_ZEBRA_BASE_URL` | `VITE_API_ZEBRA_BASE_URL` | Impresión Zebra |
-| `LOGO_URL` | `VITE_LOGO_URL` | Logo corporativo |
+| `APP_TITLE` | `VITE_APP_TITLE` | Título en la pestaña del navegador |
+| `API_BASE_URL` | `VITE_API_BASE_URL` | Base URL del API (vacío en dev — usa proxy) |
 
 ---
 
 ## Clientes HTTP (src/api/clients.js)
 
-Un cliente Axios por servicio, todos con interceptores centrales:
-
-- `authApi` — autenticación
-- `prodApi` — API principal (también exportado como `traceApi` por compatibilidad)
-- `reportsApi` — reportes
-- `notificationsApi` — notificaciones
+Un único cliente Axios con interceptores centrales (`apiClient`).
 
 **Interceptores:**
-- Request: adjunta Bearer token desde `src/auth/session.js`
-- Response: normaliza errores. Un error rechazado siempre llega como `Error` con `.message` ya extraído.
+- **Request**: adjunta Bearer token desde `src/auth/session.js`.
+- **Response (éxito)**: pasa la respuesta tal cual.
+- **Response (error)**: normaliza errores — un error rechazado siempre llega como `Error` con `.message` ya extraído.
+- **401 con refresh**: si el servidor devuelve 401, el interceptor intenta renovar el access token llamando `POST /api/auth/refresh` con el refresh token almacenado. Si tiene éxito, reintenta la petición original. Si falla (refresh expirado), limpia la sesión y redirige a `/login`.
 
 **Helpers obligatorios — importar desde `src/api/clients.js`:**
 
 ```js
-import { resolveApiEnvelope, extractApiErrorMessage, prodApi } from '../api/clients'
+import { resolveApiEnvelope, extractApiErrorMessage, apiClient } from '../api/clients'
 
 // resolveApiEnvelope(response.data)
 //   Si la respuesta tiene envelope { isSuccess, data, message }: extrae data o lanza Error(message)
@@ -137,26 +117,65 @@ import { resolveApiEnvelope, extractApiErrorMessage, prodApi } from '../api/clie
 
 ---
 
-## Sesión y perfil (src/auth/session.js)
+## Autenticación (src/api/authService.js)
 
-Helpers para leer el token y el perfil del usuario autenticado. Usarlos dentro de hooks:
+Funciones de autenticación. Usan un cliente Axios sin interceptores para evitar loops con el handler de 401.
 
 ```js
-import { getToken, getProfile, isTokenValid, isUserInGroup, getUserGroups, clearSession } from '../auth/session'
+import { login, register, refreshToken } from '../api/authService'
 
-getToken()          // → string JWT o ''
-getProfile()        // → { name, employee, ... } del token
-isTokenValid()      // → boolean (verifica exp del JWT)
-isUserInGroup('GTM_ADMIN') // → boolean
-getUserGroups()     // → string[]
-clearSession()      // → logout: limpia localStorage y sessionStorage
+// POST /api/auth/login → { accessToken, refreshToken, expiresAtUtc }
+await login(email, password)
+
+// POST /api/auth/register → { publicId, ... }
+await register({ email, password, role })
+
+// POST /api/auth/refresh → { accessToken, refreshToken, expiresAtUtc }
+await refreshToken(token)
+```
+
+**Flujo de login en la página `Login.jsx`:**
+```js
+const result = await login(email, password)
+setSession({ token: result.accessToken, refreshToken: result.refreshToken, rememberMe })
+navigate('/app', { replace: true })
+```
+
+---
+
+## Sesión y perfil (src/auth/session.js)
+
+Helpers para leer el token y el perfil del usuario autenticado. Usarlos dentro de hooks.
+
+El perfil se decodifica directamente del JWT en cada llamada — no se almacena por separado. Los claims vienen del back-template: `sub` (PublicId GUID), `email`, `role`, `tenant_id`.
+
+```js
+import {
+  getToken, getRefreshToken,
+  setSession, clearSession,
+  getProfile, isTokenValid,
+  getUserRole, hasRole, getCurrentTenantId,
+  getRememberPreference,
+} from '../auth/session'
+
+getToken()               // → string JWT o ''
+getRefreshToken()        // → string refresh token o ''
+getProfile()             // → { sub, email, role, tenantId }
+isTokenValid()           // → boolean (verifica exp del JWT)
+getUserRole()            // → string: 'Admin' | 'Manager' | 'User' | ''
+hasRole('Admin')         // → boolean
+getCurrentTenantId()     // → number | null
+clearSession()           // → limpia token + refresh token de localStorage/sessionStorage
+
+setSession({ token, refreshToken, rememberMe })
+// Almacena en localStorage (rememberMe=true) o sessionStorage (rememberMe=false)
 ```
 
 **Para obtener el usuario actual en operaciones de auditoría** (como `updatedByUser`):
 
 ```js
 import { getProfile } from '../auth/session'
-const updatedByUser = getProfile()?.name ?? getProfile()?.employee ?? 'unknown'
+const updatedByUser = getProfile().email || 'unknown'
 ```
 
 ---
@@ -520,30 +539,30 @@ Un archivo por dominio en `src/api/`. Solo funciones async. Siempre usar `resolv
 
 ```js
 // src/api/myDomainService.js
-import { resolveApiEnvelope, prodApi } from './clients'
+import { resolveApiEnvelope, apiClient } from './clients'
 
 export async function getMyEntities() {
-  const response = await prodApi.get('/api/my-domain/entities')
+  const response = await apiClient.get('/api/my-domain/entities')
   return resolveApiEnvelope(response.data) || []
 }
 
 export async function getMyEntityById(id) {
-  const response = await prodApi.get(`/api/my-domain/entities/${id}`)
+  const response = await apiClient.get(`/api/my-domain/entities/${id}`)
   return resolveApiEnvelope(response.data)
 }
 
 export async function createMyEntity(body) {
-  const response = await prodApi.post('/api/my-domain/entities', body)
+  const response = await apiClient.post('/api/my-domain/entities', body)
   return resolveApiEnvelope(response.data)
 }
 
 export async function updateMyEntity(id, body) {
-  const response = await prodApi.put(`/api/my-domain/entities/${id}`, body)
+  const response = await apiClient.put(`/api/my-domain/entities/${id}`, body)
   return resolveApiEnvelope(response.data)
 }
 
 export async function deleteMyEntity(id) {
-  const response = await prodApi.delete(`/api/my-domain/entities/${id}`)
+  const response = await apiClient.delete(`/api/my-domain/entities/${id}`)
   return resolveApiEnvelope(response.data)
 }
 ```
@@ -637,7 +656,7 @@ export default function useDomainModule() {
   async function handleSave() {
     setSaving(true)
     try {
-      const updatedByUser = getProfile()?.name ?? 'unknown'
+      const updatedByUser = getProfile().email || 'unknown'
       if (editingRow) {
         await updateMyEntity(editingRow.id, { ...form, updatedByUser })
       } else {
@@ -665,7 +684,7 @@ export default function useDomainModule() {
       action: async (formValues) => {
         setBusyRowId(row.id)
         try {
-          const updatedByUser = getProfile()?.name ?? 'unknown'
+          const updatedByUser = getProfile().email || 'unknown'
           await updateMyEntity(row.id, { isActive: false, updatedByUser, comments: formValues.comments })
           setNotification({ id: crypto.randomUUID(), type: 'success', message: `"${row.name}" dado de baja.` })
           await loadData()
@@ -744,7 +763,7 @@ const MyDomainModule = lazy(() => import('../pages/MyDomainModule.jsx'))
 '/app/domain/sub-domain/my-module',
 ```
 
-**3b. Registrar en la navegación** en `src/pages/Dashboard.jsx` (array `navigation`). Si no está claro el grupo o subgrupo del menú, **preguntar antes de decidir la ubicación**.
+**3b. Registrar en la navegación** en `src/components/layout/AppNavbar.jsx` (array `NAV_ITEMS`). Si no está claro en qué grupo colocarlo, **preguntar antes de decidir la ubicación**.
 
 ---
 
@@ -819,7 +838,7 @@ useEffect(() => {
           eventName: 'MyEntityChanged',
           handler: async ({ entityId, changeType, updatedByUser } = {}) => {
             await _refs.current.loadData()
-            const currentUser = getProfile()?.name ?? ''
+            const currentUser = getProfile().email || ''
             if (updatedByUser && updatedByUser !== currentUser) {
               _refs.current.setNotification({
                 id: crypto.randomUUID(),
@@ -884,7 +903,7 @@ preview      → previsualizar build estático
 11. No instalar librerías nuevas sin consultarlo primero.
 12. Las llamadas a API siempre pasan por el proxy de Vite en desarrollo — nunca hardcodear IPs en código.
 13. SignalR para datos en tiempo real — no hacer polling. Ver Patrón 5 en "Patrones de código".
-14. Todo módulo nuevo debe registrarse en la navegación de `src/pages/Dashboard.jsx` (array `navigation`) y en `src/routes/wideRoutes.js`. Si no está claro en qué módulo o subgrupo del menú colocarlo, preguntar antes de decidir.
+14. Todo módulo nuevo debe registrarse en `AppRoutes.jsx` (ruta lazy), en `AppNavbar.jsx` (array `NAV_ITEMS`) y, si la tabla es ancha, en `wideRoutes.js`. Si no está claro la ubicación en el menú, preguntar antes de decidir.
 15. **Filtros en URL:** si el módulo tiene filtros que el usuario necesita mantener al navegar o compartir, usar `useSearchParams` para persistirlos. Ver Patrón 4 en "Patrones de código".
 16. **Audit trail:** toda operación de escritura debe incluir `updatedByUser` obtenido de `getProfile()` — nunca hardcodearlo ni dejarlo vacío.
 
@@ -1009,41 +1028,14 @@ Cuándo usar cada mecanismo — seguir este orden de prioridad:
 
 ## Catálogo de módulos existentes
 
-Todos los módulos registrados en `src/pages/Dashboard.jsx` (array `navigation`):
+Módulos registrados en `src/routes/AppRoutes.jsx` y enlazados en `src/components/layout/AppNavbar.jsx`:
 
-| Dominio | Subgrupo | Label | Ruta |
-|---|---|---|---|
-| Calidad | Ensamble | Aprobacion de lineas | `/app/quality/assembling/line-approvals` |
-| Calidad | Ensamble | Liberacion de picking | `/app/quality/assembling/picking` |
-| Calidad | Ensamble | Movimientos de master | `/app/quality/assembling/master-data` |
-| Calidad | Ensamble | Parametros de liberacion de QC | `/app/quality/assembling/packagingqccontainerparams` |
-| Produccion | Ensamble | Movimientos de TM | `/app/production/assembling/tm-movements` |
-| Produccion | Ensamble | Prueba funcional | `/app/production/assembling/functional-test` |
-| Produccion | Ensamble | Hora x Hora | `/app/production/assembling/hourly-rate` |
-| Produccion | Administracion | Administracion de lineas | `/app/production/admin/line-management` |
-| Produccion | Administracion | Descansos por linea | `/app/production/line-break-schedules` |
-| Produccion | Administracion | Tiempo perdido | `/app/production/admin/lost-time` |
-| Materiales | Embarques | PRT | `/app/materials/shipments/prt` |
-| Reportes | Operativos | Trazabilidad de piezas | `/app/reports/parts-traceability` |
-| Reportes | Operativos | WIP Status | `/app/reports/wip-status` |
-| Reportes | Operativos | Motors Data | `/app/reports/motors-data` |
-| Reportes | Operativos | ESD Result Test | `/app/reports/esd-result-test` |
-| Reportes | Operativos | Point Of Use ETIS | `/app/reports/point-of-use-etis` |
-| Reportes | Operativos | Lost Time | `/app/reports/lost-time` |
-| Herramientas | Etiquetas | Impresion manual de etiquetas individuales | `/app/tools/line-first-print` |
-| Herramientas | Etiquetas | Reimpresion de etiquetas individuales | `/app/tools/individual-label-reprints` |
-| Herramientas | Etiquetas | Reimpresion de etiquetas master | `/app/tools/master-label-reprints` |
-| Herramientas | Partes de servicio | Manual | `/app/tools/service-parts/manual` |
-| Herramientas | Partes de servicio | Master | `/app/tools/service-parts/master` |
-| Herramientas | Partes de servicio | Reimpresion / edicion | `/app/tools/service-parts/master-labels` |
-| Sistemas | Administracion | Alta de lineas | `/app/systems/admin/line-setup` |
-| Sistemas | Administracion | Configuracion FT | `/app/systems/functional-tests/configuration` |
-| Sistemas | Administracion | Zebra Studio | `/app/systems/zebra-studio` |
-| Sistemas | Administracion | Ruteo de impresoras | `/app/systems/printer-line-routing` |
-| Sistemas | Notificaciones | Mensaje a lineas | `/app/systems/notifications/line-broadcast` |
-| Sistemas | Almacenamiento | GTM Suite Bucket | `/app/systems/object-storage/gtm-suite-bucket` |
+| Dominio | Label | Ruta |
+|---|---|---|
+| Ejemplo | Inicio | `/app` |
+| Ejemplo | Usuarios | `/app/example/users` |
 
-Al crear un módulo nuevo, elegir el dominio y subgrupo del menú según la tabla anterior. Si no encaja, preguntar antes de crear uno nuevo.
+Al agregar un módulo nuevo: crear la ruta en `AppRoutes.jsx`, agregar el enlace en el array `NAV_ITEMS` de `AppNavbar.jsx`, y si la tabla requiere ancho completo, agregar la ruta en `wideRoutes.js`.
 
 ---
 
@@ -1054,20 +1046,20 @@ Cinco archivos completos para un módulo de tabla + CRUD estándar. Adaptar nomb
 ### Archivo 1 — Servicio (`src/api/domainService.js`)
 
 ```js
-import { resolveApiEnvelope, prodApi } from './clients'
+import { resolveApiEnvelope, apiClient } from './clients'
 
 export async function getDomainEntities() {
-  const res = await prodApi.get('/api/domain/entities')
+  const res = await apiClient.get('/api/domain/entities')
   return resolveApiEnvelope(res.data) || []
 }
 
 export async function createDomainEntity(body) {
-  const res = await prodApi.post('/api/domain/entities', body)
+  const res = await apiClient.post('/api/domain/entities', body)
   return resolveApiEnvelope(res.data)
 }
 
 export async function updateDomainEntity(id, body) {
-  const res = await prodApi.put(`/api/domain/entities/${id}`, body)
+  const res = await apiClient.put(`/api/domain/entities/${id}`, body)
   return resolveApiEnvelope(res.data)
 }
 ```
@@ -1148,7 +1140,7 @@ export default function useDomainModule() {
   async function handleSave() {
     setSaving(true)
     try {
-      const updatedByUser = getProfile()?.name ?? 'unknown'
+      const updatedByUser = getProfile().email || 'unknown'
       if (editingRow) {
         await updateDomainEntity(editingRow.id, { ...form, updatedByUser })
       } else {
@@ -1176,7 +1168,7 @@ export default function useDomainModule() {
       action: async (formValues) => {
         setBusyRowId(row.id)
         try {
-          const updatedByUser = getProfile()?.name ?? 'unknown'
+          const updatedByUser = getProfile().email || 'unknown'
           await updateDomainEntity(row.id, { isActive: false, updatedByUser, comments: formValues.comments })
           setNotification({ id: crypto.randomUUID(), type: 'success', message: `"${row.name}" dado de baja.` })
           await loadData()
@@ -1200,7 +1192,7 @@ export default function useDomainModule() {
       action: async () => {
         setBusyRowId(row.id)
         try {
-          const updatedByUser = getProfile()?.name ?? 'unknown'
+          const updatedByUser = getProfile().email || 'unknown'
           await updateDomainEntity(row.id, { isActive: true, updatedByUser })
           setNotification({ id: crypto.randomUUID(), type: 'success', message: `"${row.name}" reactivado.` })
           await loadData()

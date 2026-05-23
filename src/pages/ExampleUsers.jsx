@@ -8,12 +8,16 @@ import Pagination from '../components/primitives/Pagination'
 import ExampleUsersTableDesktop from '../components/example/users/Desktop/ExampleUsersTableDesktop'
 import ExampleUsersCardsMobile from '../components/example/users/Mobile/ExampleUsersCardsMobile'
 
-const FORM_FIELDS = [
-  { name: 'fullName',   label: 'Nombre completo', type: 'text',     placeholder: 'Ej: Juan Pérez', required: true },
-  { name: 'email',      label: 'Email',            type: 'text',     placeholder: 'juan@ejemplo.com', required: true },
-  { name: 'department', label: 'Departamento',     type: 'text',     placeholder: 'Ej: Ingeniería' },
-  { name: 'notes',      label: 'Notas',            type: 'text',     placeholder: 'Notas opcionales' },
-  { name: 'isActive',   label: 'Estado',           type: 'checkbox', checkboxLabel: 'Usuario activo' },
+// Fields shown when registering a new user (POST /api/auth/register)
+const FORM_FIELDS_CREATE = [
+  { name: 'email',    label: 'Email',      type: 'text', placeholder: 'usuario@empresa.com' },
+  { name: 'password', label: 'Contraseña', type: 'text', placeholder: '••••••••' },
+  { name: 'role',     label: 'Rol',        type: 'text', placeholder: 'User, Admin, Manager' },
+]
+
+// Fields shown when editing an existing user (PUT /api/users/{publicId})
+const FORM_FIELDS_EDIT = [
+  { name: 'fullName', label: 'Nombre completo', type: 'text', placeholder: 'Juan Pérez' },
 ]
 
 export default function ExampleUsers() {
@@ -21,14 +25,13 @@ export default function ExampleUsers() {
   const m = useExampleUsers()
 
   const tableProps = {
-    rows: m.pagedRows,
-    loading: m.loading,
-    busyRowId: m.busyRowId,
-    onOpenEdit: m.handleOpenEdit,
+    rows:        m.pagedRows,
+    loading:     m.loading,
+    busyRowId:   m.busyRowId,
+    onOpenEdit:  m.handleOpenEdit,
     onDeactivate: m.handleDeactivate,
     onReactivate: m.handleReactivate,
-    onDelete: m.handleDelete,
-    formatDate: m.formatDate,
+    formatDate:  m.formatDate,
   }
 
   return (
@@ -39,7 +42,7 @@ export default function ExampleUsers() {
         <div className="flex flex-wrap items-center gap-3">
           <input
             type="search"
-            placeholder="Buscar por nombre, email o departamento…"
+            placeholder="Buscar por nombre…"
             value={m.filters.search}
             onChange={(e) => { m.setFilters((f) => ({ ...f, search: e.target.value })); m.setPageNumber(1) }}
             className={ui.controls.inputCompact}
@@ -89,13 +92,15 @@ export default function ExampleUsers() {
 
       <RecordEditModal
         open={m.formOpen}
-        title={m.editingRow ? 'Editar usuario' : 'Nuevo usuario'}
-        fields={FORM_FIELDS}
+        title={m.editingRow ? 'Editar usuario' : 'Registrar usuario'}
+        description={m.editingRow ? undefined : 'Llama a POST /api/auth/register en el back-template.'}
+        fields={m.editingRow ? FORM_FIELDS_EDIT : FORM_FIELDS_CREATE}
         values={m.form}
         onChange={(name, value) => m.setForm((prev) => ({ ...prev, [name]: value }))}
         onConfirm={m.handleSave}
         onCancel={() => m.setFormOpen(false)}
         loading={m.saving}
+        confirmText={m.editingRow ? 'Guardar cambios' : 'Registrar'}
       />
 
       <MasterActionModal

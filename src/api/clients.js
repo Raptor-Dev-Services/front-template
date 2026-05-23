@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { API_BASE_URL } from '../config/env'
-import { getToken } from '../auth/session'
+import { getToken, getRefreshToken, setSession, clearSession, getRememberPreference } from '../auth/session'
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' }
 
@@ -26,8 +26,8 @@ export function resolveApiEnvelope(payload, fallbackMessage = 'Request failed') 
   if (!payload || typeof payload !== 'object') return payload
 
   const hasSuccessFlag = 'isSuccess' in payload || 'IsSuccess' in payload
-  const isSuccess = payload?.isSuccess ?? payload?.IsSuccess
-  const message = payload?.message ?? payload?.Message ?? fallbackMessage
+  const isSuccess      = payload?.isSuccess ?? payload?.IsSuccess
+  const message        = payload?.message   ?? payload?.Message ?? fallbackMessage
 
   if (hasSuccessFlag && !isSuccess) throw new Error(message)
 
@@ -36,6 +36,7 @@ export function resolveApiEnvelope(payload, fallbackMessage = 'Request failed') 
   return payload
 }
 
+// ── Request interceptor: attach Bearer token ────────────────────────────────
 apiClient.interceptors.request.use((config) => {
   const token = getToken()
   if (token) {
@@ -45,13 +46,68 @@ apiClient.interceptors.request.use((config) => {
   return config
 })
 
+// ── Response interceptor: 401 → refresh → retry ────────────────────────────
+let isRefreshing = false
+let failedQueue  = []
+
+function processQueue(error, token = null) {
+  failedQueue.forEach((p) => (error ? p.reject(error) : p.resolve(token)))
+  failedQueue = []
+}
+
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const original = error.config
+
+    if (error?.response?.status === 401 && !original._retry) {
+      const storedRefresh = getRefreshToken()
+
+      if (!storedRefresh) {
+        clearSession()
+        window.location.href = '/login'
+        return Promise.reject(error)
+      }
+
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => failedQueue.push({ resolve, reject }))
+          .then((token) => {
+            original.headers.Authorization = `Bearer ${token}`
+            return apiClient(original)
+          })
+      }
+
+      original._retry = true
+      isRefreshing    = true
+
+      try {
+        const res = await axios.post(
+          `${API_BASE_URL || ''}/api/auth/refresh`,
+          { refreshToken: storedRefresh },
+          { headers: JSON_HEADERS },
+        )
+        const payload  = res.data?.data ?? res.data
+        const newToken = payload?.accessToken
+        const newRefresh = payload?.refreshToken
+        setSession({ token: newToken, refreshToken: newRefresh, rememberMe: getRememberPreference() })
+        apiClient.defaults.headers.common.Authorization = `Bearer ${newToken}`
+        processQueue(null, newToken)
+        original.headers.Authorization = `Bearer ${newToken}`
+        return apiClient(original)
+      } catch (refreshError) {
+        processQueue(refreshError, null)
+        clearSession()
+        window.location.href = '/login'
+        return Promise.reject(refreshError)
+      } finally {
+        isRefreshing = false
+      }
+    }
+
     const normalizedError = new Error(extractApiErrorMessage(error))
     normalizedError.response = error?.response
-    normalizedError.status = error?.response?.status
-    normalizedError.cause = error
+    normalizedError.status   = error?.response?.status
+    normalizedError.cause    = error
     return Promise.reject(normalizedError)
   },
 )

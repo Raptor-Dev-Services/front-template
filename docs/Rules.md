@@ -192,9 +192,9 @@ Si el módulo tiene filtros que conviene mantener al navegar o compartir, usar `
 Obtener del perfil de sesión. Nunca hardcodear ni dejar vacío.
 
 ```js
-// ✅ correcto
+// ✅ correcto — email viene del claim del JWT del back-template
 import { getProfile } from '../auth/session'
-const updatedByUser = getProfile()?.name ?? getProfile()?.employee ?? 'unknown'
+const updatedByUser = getProfile().email || 'unknown'
 await updateEntity(id, { ...form, updatedByUser })
 
 // ❌ incorrecto

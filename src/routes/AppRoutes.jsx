@@ -2,9 +2,11 @@ import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { wideRoutes } from './wideRoutes'
 import AppNavbar from '../components/layout/AppNavbar'
+import { isTokenValid } from '../auth/session'
 import { ui } from '../styles/designSystem'
 
-const Home = lazy(() => import('../pages/Home'))
+const Home         = lazy(() => import('../pages/Home'))
+const Login        = lazy(() => import('../pages/Login'))
 const ExampleUsers = lazy(() => import('../pages/ExampleUsers'))
 
 function Spinner() {
@@ -17,6 +19,11 @@ function Spinner() {
 
 function renderLazy(element) {
   return <Suspense fallback={<Spinner />}>{element}</Suspense>
+}
+
+function RequireAuth({ children }) {
+  if (!isTokenValid()) return <Navigate to="/login" replace />
+  return children
 }
 
 function AppShell({ children }) {
@@ -35,17 +42,20 @@ function AppShell({ children }) {
 export default function AppRoutes() {
   return (
     <Routes>
+      <Route path="/login" element={renderLazy(<Login />)} />
       <Route path="/" element={<Navigate to="/app" replace />} />
       <Route
         path="/app/*"
         element={
-          <AppShell>
-            <Routes>
-              <Route index element={renderLazy(<Home />)} />
-              <Route path="example/users" element={renderLazy(<ExampleUsers />)} />
-              <Route path="*" element={<Navigate to="/app" replace />} />
-            </Routes>
-          </AppShell>
+          <RequireAuth>
+            <AppShell>
+              <Routes>
+                <Route index element={renderLazy(<Home />)} />
+                <Route path="example/users" element={renderLazy(<ExampleUsers />)} />
+                <Route path="*" element={<Navigate to="/app" replace />} />
+              </Routes>
+            </AppShell>
+          </RequireAuth>
         }
       />
       <Route path="*" element={<Navigate to="/app" replace />} />

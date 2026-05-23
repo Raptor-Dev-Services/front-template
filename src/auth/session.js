@@ -1,6 +1,6 @@
-const TOKEN_KEY   = 'appToken'
-const PROFILE_KEY = 'appProfile'
-const REMEMBER_ME_KEY = 'appRememberMe'
+const TOKEN_KEY         = 'appToken'
+const REFRESH_TOKEN_KEY = 'appRefreshToken'
+const REMEMBER_ME_KEY   = 'appRememberMe'
 
 function safeStorage(type) {
   if (typeof window === 'undefined') return null
@@ -33,33 +33,43 @@ export function setRememberPreference(value) {
   safeStorage('local')?.setItem(REMEMBER_ME_KEY, value ? 'true' : 'false')
 }
 
-export function setSession({ token, profile, rememberMe }) {
+export function setSession({ token, refreshToken, rememberMe }) {
   const local   = safeStorage('local')
   const session = safeStorage('session')
   if (!local || !session) return
 
-  local.removeItem(TOKEN_KEY);   local.removeItem(PROFILE_KEY)
-  session.removeItem(TOKEN_KEY); session.removeItem(PROFILE_KEY)
+  ;[TOKEN_KEY, REFRESH_TOKEN_KEY].forEach((k) => {
+    local.removeItem(k)
+    session.removeItem(k)
+  })
 
   const target = rememberMe ? local : session
   target.setItem(TOKEN_KEY, token)
-  target.setItem(PROFILE_KEY, JSON.stringify(profile || {}))
+  if (refreshToken) target.setItem(REFRESH_TOKEN_KEY, refreshToken)
   setRememberPreference(rememberMe)
 }
 
-export function getToken()   { return readFromStorage(TOKEN_KEY) }
+export function getToken()        { return readFromStorage(TOKEN_KEY) }
+export function getRefreshToken() { return readFromStorage(REFRESH_TOKEN_KEY) }
 
+// Returns the decoded JWT payload as { sub, email, role, tenantId }.
+// Claims come from back-template: sub (PublicId GUID), email, role, tenant_id.
 export function getProfile() {
-  const raw = readFromStorage(PROFILE_KEY)
-  if (!raw) return {}
-  try { return JSON.parse(raw) } catch { return {} }
+  const payload = decodeJwtPayload(getToken() ?? '')
+  if (!payload) return {}
+  return {
+    sub:      payload.sub      ?? '',
+    email:    payload.email    ?? '',
+    role:     payload.role     ?? '',
+    tenantId: payload.tenant_id ? Number(payload.tenant_id) : null,
+  }
 }
 
 export function clearSession() {
-  safeStorage('local')?.removeItem(TOKEN_KEY)
-  safeStorage('local')?.removeItem(PROFILE_KEY)
-  safeStorage('session')?.removeItem(TOKEN_KEY)
-  safeStorage('session')?.removeItem(PROFILE_KEY)
+  ;[TOKEN_KEY, REFRESH_TOKEN_KEY].forEach((k) => {
+    safeStorage('local')?.removeItem(k)
+    safeStorage('session')?.removeItem(k)
+  })
 }
 
 export function isTokenValid() {
@@ -70,14 +80,14 @@ export function isTokenValid() {
   return Date.now() < payload.exp * 1000
 }
 
-export function getUserGroups() {
-  const payload = decodeJwtPayload(getToken() ?? '')
-  if (!payload) return []
-  const groups = payload['group']
-  if (!groups) return []
-  return Array.isArray(groups) ? groups : [groups]
+export function getUserRole() {
+  return getProfile().role || ''
 }
 
-export function isUserInGroup(groupName) {
-  return getUserGroups().some((g) => String(g).trim() === groupName)
+export function hasRole(roleName) {
+  return getUserRole() === roleName
+}
+
+export function getCurrentTenantId() {
+  return getProfile().tenantId ?? null
 }

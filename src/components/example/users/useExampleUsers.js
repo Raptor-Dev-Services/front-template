@@ -2,21 +2,21 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { extractApiErrorMessage } from '../../../api/clients'
 import {
   getExampleUsers,
-  createExampleUser,
+  registerExampleUser,
   updateExampleUser,
-  deleteExampleUser,
+  disableExampleUser,
 } from '../../../api/exampleUsersService'
+import { getProfile } from '../../../auth/session'
 import { formatDate } from '../../../utils/dateTime'
 
 const DEFAULT_FILTERS = { search: '', status: 'all' }
-
-const EMPTY_FORM = { fullName: '', email: '', department: '', notes: '', isActive: true }
+const EMPTY_FORM      = { email: '', password: '', role: 'User', fullName: '' }
 
 export default function useExampleUsers() {
-  const [rows, setRows]         = useState([])
-  const [loading, setLoading]   = useState(false)
-  const [error, setError]       = useState('')
-  const [busyRowId, setBusyRowId] = useState(null)
+  const [rows, setRows]             = useState([])
+  const [loading, setLoading]       = useState(false)
+  const [error, setError]           = useState('')
+  const [busyRowId, setBusyRowId]   = useState(null)
   const [notification, setNotification] = useState(null)
 
   const [formOpen, setFormOpen]     = useState(false)
@@ -30,7 +30,7 @@ export default function useExampleUsers() {
   })
   const [actionForm, setActionForm] = useState({ comments: '' })
 
-  const [filters, setFilters]     = useState(DEFAULT_FILTERS)
+  const [filters, setFilters]       = useState(DEFAULT_FILTERS)
   const [pageNumber, setPageNumber] = useState(1)
   const [pageSize] = useState(50)
 
@@ -53,12 +53,9 @@ export default function useExampleUsers() {
   const filteredRows = useMemo(() => {
     const q = filters.search.trim().toLowerCase()
     return rows.filter((row) => {
-      if (q) {
-        const searchable = `${row.fullName} ${row.email} ${row.department}`.toLowerCase()
-        if (!searchable.includes(q)) return false
-      }
-      if (filters.status === 'active' && !row.isActive) return false
-      if (filters.status === 'inactive' && row.isActive) return false
+      if (q && !String(row.fullName || '').toLowerCase().includes(q)) return false
+      if (filters.status === 'active'   && !row.isActive) return false
+      if (filters.status === 'inactive' &&  row.isActive) return false
       return true
     })
   }, [rows, filters])
@@ -80,24 +77,19 @@ export default function useExampleUsers() {
 
   function handleOpenEdit(row) {
     setEditingRow(row)
-    setForm({
-      fullName: row.fullName ?? '',
-      email: row.email ?? '',
-      department: row.department ?? '',
-      notes: row.notes ?? '',
-      isActive: row.isActive ?? true,
-    })
+    setForm({ ...EMPTY_FORM, fullName: row.fullName ?? '' })
     setFormOpen(true)
   }
 
   async function handleSave() {
     setSaving(true)
     try {
+      const updatedByUser = getProfile().email || 'unknown'
       if (editingRow) {
-        await updateExampleUser(editingRow.userId, form)
+        await updateExampleUser(editingRow.publicId, { fullName: form.fullName, updatedByUser })
         setNotification({ id: crypto.randomUUID(), type: 'success', message: 'Usuario actualizado.' })
       } else {
-        await createExampleUser(form)
+        await registerExampleUser({ email: form.email, password: form.password, role: form.role })
         setNotification({ id: crypto.randomUUID(), type: 'success', message: 'Usuario creado.' })
       }
       setFormOpen(false)
@@ -119,9 +111,9 @@ export default function useExampleUsers() {
       variant: 'danger',
       requireComment: false,
       action: async () => {
-        setBusyRowId(row.userId)
+        setBusyRowId(row.publicId)
         try {
-          await updateExampleUser(row.userId, { ...row, isActive: false })
+          await disableExampleUser(row.publicId)
           setNotification({ id: crypto.randomUUID(), type: 'success', message: `"${row.fullName}" dado de baja.` })
           await loadData()
         } catch (err) {
@@ -142,33 +134,11 @@ export default function useExampleUsers() {
       variant: 'success',
       requireComment: false,
       action: async () => {
-        setBusyRowId(row.userId)
+        setBusyRowId(row.publicId)
         try {
-          await updateExampleUser(row.userId, { ...row, isActive: true })
+          const updatedByUser = getProfile().email || 'unknown'
+          await updateExampleUser(row.publicId, { isActive: true, updatedByUser })
           setNotification({ id: crypto.randomUUID(), type: 'success', message: `"${row.fullName}" reactivado.` })
-          await loadData()
-        } catch (err) {
-          setNotification({ id: crypto.randomUUID(), type: 'error', message: extractApiErrorMessage(err) })
-        } finally {
-          setBusyRowId(null)
-        }
-      },
-    })
-  }
-
-  function handleDelete(row) {
-    setConfirmModal({
-      open: true,
-      title: 'Eliminar usuario',
-      message: `¿Eliminar permanentemente a "${row.fullName}"? Esta acción no se puede deshacer.`,
-      confirmText: 'Eliminar',
-      variant: 'danger',
-      requireComment: false,
-      action: async () => {
-        setBusyRowId(row.userId)
-        try {
-          await deleteExampleUser(row.userId)
-          setNotification({ id: crypto.randomUUID(), type: 'success', message: `"${row.fullName}" eliminado.` })
           await loadData()
         } catch (err) {
           setNotification({ id: crypto.randomUUID(), type: 'error', message: extractApiErrorMessage(err) })
@@ -194,7 +164,7 @@ export default function useExampleUsers() {
     formOpen, setFormOpen, form, setForm, saving,
     handleOpenCreate, handleOpenEdit, handleSave,
     confirmModal, setConfirmModal, actionForm, setActionForm,
-    handleDeactivate, handleReactivate, handleDelete,
+    handleDeactivate, handleReactivate,
     loadData, formatDate,
   }
 }
