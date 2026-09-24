@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { login } from '../api/authService'
-import { setSession, isTokenValid } from '../auth/session'
+import { login } from '../api/auth'
+import { isAuthenticated } from '../auth/session'
 import { ui } from '../styles/designSystem'
+import { extractApiErrorMessage } from '../api/client'
 
 export default function Login() {
   const navigate  = useNavigate()
@@ -12,18 +13,17 @@ export default function Login() {
   const [loading, setLoading]     = useState(false)
   const [error, setError]         = useState('')
 
-  if (isTokenValid()) return <Navigate to="/app" replace />
+  if (isAuthenticated()) return <Navigate to="/app" replace />
 
   async function handleSubmit(e) {
     e.preventDefault()
     setLoading(true)
     setError('')
     try {
-      const result = await login(email, password)
-      setSession({ token: result.accessToken, refreshToken: result.refreshToken, rememberMe })
+      await login({ email, password, rememberMe })
       navigate('/app', { replace: true })
     } catch (err) {
-      setError(err?.message || 'Credenciales incorrectas')
+      setError(extractApiErrorMessage(err))
     } finally {
       setLoading(false)
     }

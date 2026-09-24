@@ -1,7 +1,8 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline'
 import { cx, ui } from '../../styles/designSystem'
-import { clearSession, getProfile } from '../../auth/session'
+import { getClaims } from '../../auth/session'
+import { logout } from '../../api/auth'
 
 const NAV_ITEMS = [
   { label: 'Inicio',    to: '/app' },
@@ -11,10 +12,10 @@ const NAV_ITEMS = [
 export default function AppNavbar() {
   const { pathname } = useLocation()
   const navigate     = useNavigate()
-  const profile      = getProfile()
+  const profile      = getClaims() ?? {}
 
-  function handleLogout() {
-    clearSession()
+  async function handleLogout() {
+    await logout()
     navigate('/login', { replace: true })
   }
 
@@ -47,8 +48,8 @@ export default function AppNavbar() {
           {profile.email && (
             <div className="hidden flex-col items-end sm:flex">
               <span className={ui.typography.bodyStrong}>{profile.email}</span>
-              {profile.role && (
-                <span className={ui.badge.neutral}>{profile.role}</span>
+              {profile.roles?.[0] && (
+                <span className={ui.badge.neutral}>{profile.roles[0]}</span>
               )}
             </div>
           )}

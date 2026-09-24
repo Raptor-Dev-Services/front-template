@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { wideRoutes } from './wideRoutes'
 import AppNavbar from '../components/layout/AppNavbar'
-import { isTokenValid } from '../auth/session'
+import { isAuthenticated } from '../auth/session'
 
 const Home         = lazy(() => import('../pages/Home'))
 const Login        = lazy(() => import('../pages/Login'))
@@ -21,7 +21,7 @@ function renderLazy(element) {
 }
 
 function RequireAuth({ children }) {
-  if (!isTokenValid()) return <Navigate to="/login" replace />
+  if (!isAuthenticated()) return <Navigate to="/login" replace />
   return children
 }
 

@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { extractApiErrorMessage } from '../../../api/clients'
-import {
-  getExampleUsers,
-  registerExampleUser,
-  updateExampleUser,
-  disableExampleUser,
-} from '../../../api/exampleUsersService'
-import { getProfile } from '../../../auth/session'
+import { extractApiErrorMessage, http, resolveApiEnvelope } from '../../../api/client'
+import { listAllUsers, updateUser, disableUser } from '../../../api/users'
+import { getClaims } from '../../../auth/session'
+
+// Adaptador temporal sobre el servicio nuevo: esta pantalla se reemplaza en el siguiente commit.
+const getExampleUsers = async () => (await listAllUsers()).items
+const registerExampleUser = async (body) => resolveApiEnvelope(await http.post('/api/auth/register', body))
+const updateExampleUser = updateUser
+const disableExampleUser = disableUser
+const getProfile = () => getClaims() ?? {}
 import { formatDate } from '../../../utils/dateTime'
 
 const DEFAULT_FILTERS = { search: '', status: 'all' }
