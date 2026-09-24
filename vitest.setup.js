@@ -9,6 +9,18 @@ if (typeof Element !== 'undefined' && !Element.prototype.getAnimations) {
   Element.prototype.getAnimations = () => []
 }
 
+// Los menus anclados de Headless UI (anchor="bottom end") posicionan con floating-ui, que observa el
+// tamano del disparador con ResizeObserver. jsdom no lo implementa y la prueba que abre un menu termina
+// con un "ResizeObserver is not defined" sin atrapar. Un observador que no observa nada es la verdad en
+// jsdom: no hay layout, asi que nada cambia de tamano.
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+}
+
 // Cada idioma que no es el por defecto es un chunk que se carga bajo demanda: en la app lo hace
 // main.jsx antes de montar. La suite prueba los dos idiomas, asi que aqui se cargan TODOS por
 // adelantado; sin esto, una prueba en ingles veria el idioma por defecto y fallaria con un mensaje

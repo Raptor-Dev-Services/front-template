@@ -37,11 +37,10 @@ export default [
       'react/jsx-uses-react': 'off',
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
-      // Las dos reglas del React Compiler que estrena eslint-plugin-react-hooks 7 quedan en AVISO
-      // mientras viva el codigo heredado de la primera version de la plantilla, que las incumple. Se
-      // suben a 'error' en cuanto ese codigo se reemplaza: codigo nuevo no nace con esta deuda.
-      'react-hooks/set-state-in-effect': 'warn',
-      'react-hooks/refs': 'warn',
+      // Las reglas del React Compiler que estrena eslint-plugin-react-hooks 7 van en ERROR: la plantilla
+      // no arrastra deuda que las incumpla, y un proyecto nuevo no deberia nacer con ella.
+      'react-hooks/set-state-in-effect': 'error',
+      'react-hooks/refs': 'error',
     },
   },
   {

@@ -1,2 +1,2 @@
-// Adaptador de ruta /users. Apunta TEMPORALMENTE a la pantalla de la v1 hasta que se reconstruya.
-export { default } from './ExampleUsers.jsx'
+// Adaptador de ruta /users -> modulo de ejemplo de usuarios.
+export { UsersPage as default } from '../features/users/UsersPage.jsx'
