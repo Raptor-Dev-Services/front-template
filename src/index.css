@@ -1,5 +1,11 @@
 @import 'tailwindcss';
 
+/* Tailwind v4 descubre las fuentes solo, recorriendo todo lo que no este en .gitignore. La libreria de
+   referencia docs/Tailwind Plus SI esta versionada, asi que sin esta linea se escaneaban sus miles de
+   ejemplos y cada utilidad que usan acababa en el CSS de la app (medido: 684 kB sin comprimir, contra
+   ~40 kB sin ella). Se consulta, no se compila. */
+@source not '../docs/Tailwind Plus';
+
 /*
   Tema claro/oscuro controlado por la APLICACION (skill theming-dark-mode del catalogo):
   - La variante `dark:` responde a [data-theme="dark"] en <html>, que estampa el script de index.html
