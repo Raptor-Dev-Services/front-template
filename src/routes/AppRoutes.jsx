@@ -1,63 +1,67 @@
-import { lazy, Suspense } from 'react'
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { wideRoutes } from './wideRoutes'
-import AppNavbar from '../components/layout/AppNavbar'
-import { isAuthenticated } from '../auth/session'
+import { Suspense } from 'react'
+import { Routes, Route, Outlet } from 'react-router-dom'
+import { AppLayout } from '../layouts/AppLayout.jsx'
+import { PublicLayout } from '../layouts/PublicLayout.jsx'
+import { RequireAuth, RequirePermission } from './guards.jsx'
+import { lazyRoute } from './lazyRoute.js'
+import { RouteLoading } from '../ui/RouteLoading.jsx'
+import { PERMISSIONS } from '../auth/permissions.js'
 
-const Home         = lazy(() => import('../pages/Home'))
-const Login        = lazy(() => import('../pages/Login'))
-const ExampleUsers = lazy(() => import('../pages/ExampleUsers'))
+// En el bundle inicial va solo lo que necesita el primer render: layouts, guardas, login (a donde
+// rebota toda ruta protegida sin sesion: diferirlo agregaria un viaje de red a la primera interaccion)
+// y la 404 (destino del comodin, no arrastra nada propio).
+import Login from '../pages/Login.jsx'
+import NotFound from '../pages/NotFound.jsx'
 
-function Spinner() {
+// El resto se difiere por ruta: cada pantalla del panel viaja en su chunk. lazyRoute (y no lazy a
+// secas) recarga una vez si el chunk ya no existe tras un despliegue.
+const Home = lazyRoute(() => import('../pages/Home.jsx'))
+const Users = lazyRoute(() => import('../pages/Users.jsx'))
+
+// Limite de Suspense como ruta de layout sin path. Montado DENTRO del Outlet del layout, el fallback
+// sustituye solo el contenido: el menu sigue en pantalla mientras baja el chunk.
+function DeferredOutlet() {
   return (
-    <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center">
-      <div className="size-6 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
-    </div>
+    <Suspense fallback={<RouteLoading />}>
+      <Outlet />
+    </Suspense>
   )
 }
 
-function renderLazy(element) {
-  return <Suspense fallback={<Spinner />}>{element}</Suspense>
-}
-
-function RequireAuth({ children }) {
-  if (!isAuthenticated()) return <Navigate to="/login" replace />
-  return children
-}
-
-function AppShell({ children }) {
-  const { pathname } = useLocation()
-  const isWide = wideRoutes.some((r) => pathname.startsWith(r))
-  return (
-    <div className="flex min-h-screen flex-col bg-slate-50">
-      <AppNavbar />
-      <main className={isWide ? 'flex-1 p-3 sm:p-4 lg:p-5' : 'mx-auto w-full max-w-screen-xl flex-1 p-3 sm:p-4 lg:p-5'}>
-        {children}
-      </main>
-    </div>
-  )
-}
-
-export default function AppRoutes() {
+// Mapa de rutas:
+// - Con sesion (RequireAuth + AppLayout): el panel. Cada modulo declara su permiso con
+//   RequirePermission, el mismo que filtra su item en layouts/navItems.js.
+// - Sin sesion (PublicLayout): /login y la 404. La 404 va aqui y no dentro del panel para que una URL
+//   mal escrita muestre "no existe" en vez de mandar al login.
+export function AppRoutes() {
   return (
     <Routes>
-      <Route path="/login" element={renderLazy(<Login />)} />
-      <Route path="/" element={<Navigate to="/app" replace />} />
       <Route
-        path="/app/*"
         element={
           <RequireAuth>
-            <AppShell>
-              <Routes>
-                <Route index element={renderLazy(<Home />)} />
-                <Route path="example/users" element={renderLazy(<ExampleUsers />)} />
-                <Route path="*" element={<Navigate to="/app" replace />} />
-              </Routes>
-            </AppShell>
+            <AppLayout />
           </RequireAuth>
         }
-      />
-      <Route path="*" element={<Navigate to="/app" replace />} />
+      >
+        <Route element={<DeferredOutlet />}>
+          <Route index element={<Home />} />
+          <Route
+            path="users"
+            element={
+              <RequirePermission permission={PERMISSIONS.usersRead}>
+                <Users />
+              </RequirePermission>
+            }
+          />
+        </Route>
+      </Route>
+
+      <Route element={<PublicLayout />}>
+        <Route path="login" element={<Login />} />
+        <Route path="*" element={<NotFound />} />
+      </Route>
     </Routes>
   )
 }
+
+export default AppRoutes
