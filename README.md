@@ -18,6 +18,8 @@ listo para hablar con el [`back-template`](../back-template).
   estados de datos, toast) y limites de error en dos niveles con pantalla de error y 404.
 - **Modulo de ejemplo `users`**: listado paginado en el servidor con la pagina en la URL, estados de carga,
   vacio y error, edicion, baja con confirmacion y exportacion completa a CSV.
+- **Verificacion en dos pasos**: login en dos pasos y pantalla "Mi cuenta" para activarla y apagarla, contra
+  los endpoints TOTP del back-template.
 - **Despliegue**: recarga unica ante chunks viejos, CSP generada en el build, imagen Docker con nginx
   endurecido y CI con lint, build, pruebas, auditoria y escaneo de secretos.
 

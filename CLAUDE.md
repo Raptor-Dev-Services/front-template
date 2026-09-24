@@ -13,7 +13,8 @@ nada de dominio de un cliente.
 - API en dev: `http://localhost:5060` (`back-template`), por el proxy de Vite (`/api`).
 - Contrato con el backend: envelope `{ isSuccess | success, data, message, errors, utcTimeStamp }`
   (camelCase o PascalCase), JWT con claims `sub`, `email`, `role`, `permission` (arreglo) y `tenant_id`;
-  endpoints `/api/v1/auth/login`, `/api/v1/auth/refresh`, `/api/v1/auth/logout`, `/api/v1/users` (paginado).
+  endpoints `/api/v1/auth/login` (+ `/login/2fa`), `/api/v1/auth/refresh`, `/api/v1/auth/logout`,
+  `/api/v1/account/me` y `/account/2fa/*`, `/api/v1/users` (paginado).
 - Referencia UI: `docs/Tailwind Plus/` se **consulta**, no se copia (ver `docs/TailwindPlus.md`).
 
 ## Configuracion de Claude Code

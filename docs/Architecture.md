@@ -32,7 +32,7 @@ src/
   api/
     client.js         instancia UNICA de axios + envelope + refresh + clasificacion de errores
     paging.js         fetchAllPages
-    auth.js, users.js servicios por dominio
+    auth.js, account.js, users.js  servicios por dominio
   auth/
     session.js        tokens (recordarme) y claims del JWT
     jwt.js            decodificador UTF-8 del payload
@@ -103,6 +103,7 @@ UsersPage -> si ok: AppNotification de exito; si no: el modal muestra message en
 |---|---|---|
 | `/` | `RequireAuth` | AppLayout |
 | `/users` | `RequireAuth` + `RequirePermission(users.read)` | AppLayout |
+| `/account` | `RequireAuth` (sin permiso: es lo del usuario de la sesion) | AppLayout |
 | `/login` | ninguna (si ya hay sesion, redirige) | PublicLayout |
 | `*` (404) | ninguna | PublicLayout |
 
