@@ -4,23 +4,34 @@
 import { http, resolveApiEnvelope, performTokenRefresh } from './client.js'
 import { setTokens, getRefreshToken, clearSession } from '../auth/session.js'
 
-export const TWO_FACTOR_REQUIRED = 'TWO_FACTOR_REQUIRED'
-
 /**
- * Inicia sesion. POST /api/v1/auth/login  body: { email, password }
- * Respuesta: { accessToken, refreshToken, expiresAtUtc }. Guarda los tokens en localStorage o
- * sessionStorage segun `rememberMe` y devuelve el payload.
+ * Primer paso del login. POST /api/v1/auth/login  body: { email, password }
+ *
+ * Sin segundo factor el backend devuelve la sesion: se guardan los tokens (localStorage o sessionStorage
+ * segun `rememberMe`) y se devuelve `{ twoFactorRequired: false }`.
+ *
+ * Con segundo factor NO hay tokens todavia: devuelve `{ twoFactorRequired: true, challengeToken }`, un
+ * reto efimero que se canjea con el codigo en `completeTwoFactorLogin`. No se guarda nada: una sesion
+ * sin tokens rebotaria al login en la primera peticion.
  */
 export async function login({ email, password, rememberMe = false }) {
   const res = await http.post('/api/v1/auth/login', { email, password })
   const data = resolveApiEnvelope(res)
-  // Con 2FA el backend no devuelve tokens sino un challenge para /auth/login/2fa. La plantilla aun no
-  // tiene esa pantalla: se corta aqui en vez de guardar una sesion vacia que rebota al login.
   if (data?.twoFactorRequired ?? data?.TwoFactorRequired) {
-    const err = new Error('auth.errors.twoFactorUnsupported')
-    err.code = TWO_FACTOR_REQUIRED
-    throw err
+    return { twoFactorRequired: true, challengeToken: data.challengeToken ?? data.ChallengeToken }
   }
+  setTokens({ accessToken: data?.accessToken, refreshToken: data?.refreshToken, rememberMe })
+  return { twoFactorRequired: false }
+}
+
+/**
+ * Segundo paso: canjea el reto del primer paso y un codigo (el de la app autenticadora o uno de
+ * recuperacion) por la sesion. POST /api/v1/auth/login/2fa  body: { challengeToken, code }
+ * Cuelga de /auth/, asi que un 401 aqui (codigo malo o reto vencido) no dispara el refresh.
+ */
+export async function completeTwoFactorLogin({ challengeToken, code, rememberMe = false }) {
+  const res = await http.post('/api/v1/auth/login/2fa', { challengeToken, code })
+  const data = resolveApiEnvelope(res)
   setTokens({ accessToken: data?.accessToken, refreshToken: data?.refreshToken, rememberMe })
   return data
 }
@@ -39,8 +50,7 @@ export async function logout() {
   const refreshToken = getRefreshToken()
   try {
     if (refreshToken) {
-      // Mismas dos formas del campo que en el refresh (ver performTokenRefresh).
-      await http.post('/api/v1/auth/logout', { refreshToken, token: refreshToken }, { _skipAuthRefresh: true })
+      await http.post('/api/v1/auth/logout', { refreshToken }, { _skipAuthRefresh: true })
     }
   } catch {
     // Ignorado a proposito: el estado local se limpia igual.
@@ -49,4 +59,4 @@ export async function logout() {
   }
 }
 
-export default { login, refresh, logout }
+export default { login, completeTwoFactorLogin, refresh, logout }

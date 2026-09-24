@@ -77,9 +77,7 @@ export async function performTokenRefresh() {
   }
   refreshPromise = (async () => {
     try {
-      // `refreshToken` y `token`: el cuerpo lleva las dos formas del mismo valor porque el nombre del
-      // campo ha cambiado entre versiones del back-template. El backend ignora la que no conoce.
-      const res = await http.post(REFRESH_URL, { refreshToken, token: refreshToken }, { _skipAuthRefresh: true })
+      const res = await http.post(REFRESH_URL, { refreshToken }, { _skipAuthRefresh: true })
       const data = resolveApiEnvelope(res)
       setTokens({ accessToken: data?.accessToken, refreshToken: data?.refreshToken })
       return data

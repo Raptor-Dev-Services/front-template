@@ -1,4 +1,4 @@
-import { HomeIcon, UsersIcon } from '@heroicons/react/24/outline'
+import { HomeIcon, UserCircleIcon, UsersIcon } from '@heroicons/react/24/outline'
 import { PERMISSIONS } from '../auth/permissions.js'
 
 // Items del menu lateral. `labelKey` es la clave i18n; `permission`, si se define, oculta el item a
@@ -9,6 +9,7 @@ import { PERMISSIONS } from '../auth/permissions.js'
 export const NAV_ITEMS = [
   { key: 'home', to: '/', labelKey: 'nav.home', Icon: HomeIcon, end: true },
   { key: 'users', to: '/users', labelKey: 'nav.users', Icon: UsersIcon, permission: PERMISSIONS.usersRead },
+  { key: 'account', to: '/account', labelKey: 'nav.account', Icon: UserCircleIcon },
 ]
 
 /**

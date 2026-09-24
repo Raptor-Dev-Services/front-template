@@ -17,6 +17,7 @@ import NotFound from '../pages/NotFound.jsx'
 // secas) recarga una vez si el chunk ya no existe tras un despliegue.
 const Home = lazyRoute(() => import('../pages/Home.jsx'))
 const Users = lazyRoute(() => import('../pages/Users.jsx'))
+const Account = lazyRoute(() => import('../pages/Account.jsx'))
 
 // Limite de Suspense como ruta de layout sin path. Montado DENTRO del Outlet del layout, el fallback
 // sustituye solo el contenido: el menu sigue en pantalla mientras baja el chunk.
@@ -45,6 +46,8 @@ export function AppRoutes() {
       >
         <Route element={<DeferredOutlet />}>
           <Route index element={<Home />} />
+          {/* La cuenta propia no pide permiso: es lo del usuario de la sesion (el backend la resuelve del token). */}
+          <Route path="account" element={<Account />} />
           <Route
             path="users"
             element={

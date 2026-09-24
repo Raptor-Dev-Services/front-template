@@ -191,7 +191,7 @@ describe('handleResponseError', () => {
 
     expect(postSpy).toHaveBeenCalledTimes(1)
     expect(postSpy.mock.calls[0][0]).toBe('/api/v1/auth/refresh')
-    expect(postSpy.mock.calls[0][1]).toMatchObject({ refreshToken: 'r-viejo' })
+    expect(postSpy.mock.calls[0][1]).toEqual({ refreshToken: 'r-viejo' })
     expect(getAccessToken()).toBe('nuevo')
     expect(getRefreshToken()).toBe('r-nuevo')
     expect(error.config.headers.Authorization).toBe('Bearer nuevo')

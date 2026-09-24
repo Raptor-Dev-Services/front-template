@@ -5,10 +5,10 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom'
 
 import { LoginPage } from './LoginPage.jsx'
 import { I18nProvider } from '../../i18n/I18nProvider.jsx'
-import { login } from '../../api/auth.js'
+import { login, completeTwoFactorLogin } from '../../api/auth.js'
 import { clearSession } from '../../auth/session.js'
 
-vi.mock('../../api/auth.js', () => ({ login: vi.fn(), TWO_FACTOR_REQUIRED: 'TWO_FACTOR_REQUIRED' }))
+vi.mock('../../api/auth.js', () => ({ login: vi.fn(), completeTwoFactorLogin: vi.fn() }))
 
 function renderLogin({ from } = {}) {
   render(
@@ -50,7 +50,7 @@ describe('LoginPage', () => {
 
   it('en el exito vuelve a la ruta protegida de la que vino', async () => {
     const user = userEvent.setup()
-    login.mockResolvedValue({ accessToken: 'a', refreshToken: 'r' })
+    login.mockResolvedValue({ twoFactorRequired: false })
     renderLogin({ from: '/users' })
 
     await user.type(screen.getByLabelText(/correo electronico/i), 'ana@empresa.com')
@@ -73,5 +73,54 @@ describe('LoginPage', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Credenciales invalidas')
     expect(screen.queryByText('inicio')).not.toBeInTheDocument()
+  })
+
+  it('con segundo factor pide el codigo, lo canjea con el reto y conserva el recordarme', async () => {
+    const user = userEvent.setup()
+    login.mockResolvedValue({ twoFactorRequired: true, challengeToken: 'reto-1' })
+    completeTwoFactorLogin.mockResolvedValue({ accessToken: 'a', refreshToken: 'r' })
+    renderLogin({ from: '/users' })
+
+    await user.type(screen.getByLabelText(/correo electronico/i), 'ana@empresa.com')
+    await user.type(screen.getByLabelText(/^contrasena/i), 'secreta')
+    await user.click(screen.getByLabelText(/mantener la sesion/i))
+    await user.click(screen.getByRole('button', { name: 'Iniciar sesion' }))
+
+    // Segundo paso: el foco ya esta en el codigo, y todavia no se navego a ningun lado.
+    const code = await screen.findByLabelText(/^codigo/i)
+    expect(code).toHaveFocus()
+    expect(screen.queryByText('usuarios')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Verificar' }))
+    expect(completeTwoFactorLogin).not.toHaveBeenCalled()
+    expect(screen.getByText('Escribe el codigo.')).toBeInTheDocument()
+
+    await user.type(code, ' 123456 ')
+    await user.click(screen.getByRole('button', { name: 'Verificar' }))
+
+    expect(completeTwoFactorLogin).toHaveBeenCalledWith({ challengeToken: 'reto-1', code: '123456', rememberMe: true })
+    expect(await screen.findByText('usuarios')).toBeInTheDocument()
+  })
+
+  it('un codigo rechazado muestra el mensaje del backend; volver a empezar regresa al primer paso sin la contrasena', async () => {
+    const user = userEvent.setup()
+    login.mockResolvedValue({ twoFactorRequired: true, challengeToken: 'reto-1' })
+    completeTwoFactorLogin.mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 401, data: { isSuccess: false, message: 'El codigo no es valido o el reto expiro.' } },
+    })
+    renderLogin()
+
+    await user.type(screen.getByLabelText(/correo electronico/i), 'ana@empresa.com')
+    await user.type(screen.getByLabelText(/^contrasena/i), 'secreta')
+    await user.click(screen.getByRole('button', { name: 'Iniciar sesion' }))
+    await user.type(await screen.findByLabelText(/^codigo/i), '000000')
+    await user.click(screen.getByRole('button', { name: 'Verificar' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('El codigo no es valido o el reto expiro.')
+
+    await user.click(screen.getByRole('button', { name: 'Volver a empezar' }))
+    expect(screen.getByLabelText(/correo electronico/i)).toHaveValue('ana@empresa.com')
+    expect(screen.getByLabelText(/^contrasena/i)).toHaveValue('')
   })
 })
