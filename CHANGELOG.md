@@ -4,21 +4,15 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Versionado
 
 ## [Unreleased]
 
-### Agregado
-- Verificacion en dos pasos: el login pide el codigo de la app autenticadora (o uno de recuperacion) cuando la
-  cuenta la tiene activa, y la pantalla **Mi cuenta** (`/account`) permite activarla y apagarla. Los codigos
-  de recuperacion se muestran una sola vez, con copiar y descargar.
-
-### Cambiado
-- El refresh y el logout mandan solo `refreshToken`.
-- Las acciones de CI van fijadas por SHA, con Dependabot para mantenerlas.
-
 ## [0.2.0] - 2026-09-24
 
 Armazon generico portado desde un cliente web en produccion. Rompe con la 0.1: cambian la estructura,
 el cliente HTTP, la sesion y el design system.
 
 ### Agregado
+- Verificacion en dos pasos: el login pide el codigo de la app autenticadora (o uno de recuperacion) cuando la
+  cuenta la tiene activa, y la pantalla **Mi cuenta** (`/account`) permite activarla y apagarla. Los codigos
+  de recuperacion se muestran una sola vez, con copiar y descargar.
 - ESLint flat config y Vitest con pruebas junto al codigo.
 - Capa i18n es/en con carga diferida, traduccion pura y pruebas de paridad y de claves citadas.
 - Tokens neutros con tema claro/oscuro sin parpadeo y pruebas de contraste AA y de clases muertas.
@@ -32,6 +26,7 @@ el cliente HTTP, la sesion y el design system.
   y nginx endurecidos.
 
 ### Cambiado
+- El refresh y el logout mandan solo `refreshToken`; las acciones de CI van fijadas por SHA, con Dependabot.
 - Dev server en 5179 con `strictPort` y proxy de `/api` a `localhost:5060`.
 - `npm run dev` corre con `--mode dev` (antes `.env.dev` no lo leia nadie mas que compose).
 - Dependencias a versiones estables actuales (React 19.3, Vite 8.3, Tailwind 4.3, axios 1.20).
