@@ -1,35 +1,49 @@
-# Tailwind Plus — Biblioteca de Componentes
+# Tailwind Plus - biblioteca de referencia UI
 
-Componentes UI listos para usar. **Antes de construir cualquier elemento UI desde cero, buscar aquí si existe un ejemplo.**
+Ejemplos de componentes para **consultar** antes de construir una pantalla: estructura, estados y
+accesibilidad ya resueltos. Se leen y se adaptan; **nunca se pegan tal cual**.
 
-Ruta base: `D:\Personal\Raptor Dev Services\Templates\front-template\docs\Tailwind Plus\`
+Ruta: `docs/Tailwind Plus/` (dentro de este repo). No se compila ni se lintea: esta excluida de ESLint,
+de Vitest, del escaneo de Tailwind (`@source not` en `src/index.css`) y del contexto de Docker.
 
 ---
 
 ## Colecciones disponibles
 
-| Colección | Ruta | Cuándo usar |
+| Coleccion | Ruta | Cuando usar |
 |---|---|---|
-| **Application UI v4** | `application-ui-v4/react/` | Componentes de app interna: tablas, forms, modales, nav, overlays — la más relevante para este proyecto |
-| **Catalyst UI Kit** | `catalyst-ui-kit/catalyst-ui-kit/typescript/` | Primitivos TypeScript (button, input, table, dialog, dropdown, etc.) — referencia de API de componentes base |
-| Marketing v4 | `marketing-v4/react/` | Heroes, pricing, footers — poco relevante para ERP interno |
-| Ecommerce v4 | `ecommerce-v4/react/` | Grids de producto — poco relevante |
+| **Application UI v4** | `application-ui-v4/react/` | Componentes de app interna: tablas, formularios, modales, navegacion, overlays. La mas relevante |
+| **Catalyst UI Kit** | `catalyst-ui-kit/catalyst-ui-kit/typescript/` | Primitivos de referencia (button, input, dialog, dropdown...) para ver una API de componente completa |
+| Marketing v4 | `marketing-v4/react/` | Heroes, precios, footers: para una landing |
+| Ecommerce v4 | `ecommerce-v4/react/` | Grids de producto |
+
+Tambien existen las variantes `html/` y `vue/` de Application UI.
 
 ---
 
-## Reglas de adaptación al proyecto
+## Reglas de adaptacion
 
-Al copiar cualquier ejemplo de Tailwind Plus, aplicar estas transformaciones:
+Al tomar un ejemplo, antes de que llegue a `src/`:
 
-1. **Eliminar `'use client'`** — directiva de Next.js, no aplica en Vite/React.
-2. **Reemplazar colores `indigo-*`** — este proyecto no usa indigo:
-   - `bg-indigo-600` / `bg-indigo-500` → `bg-slate-900` (acción principal) o `bg-[#ff6100]` (acento)
-   - `text-indigo-600` → `text-slate-900`
-   - `focus-visible:outline-indigo-600` → `focus-visible:outline-[#ff7b00]`
-   - `ring-indigo-*` → `ring-slate-900`
-3. **Dark mode** — este proyecto no implementa dark mode. Eliminar todas las clases `dark:*` del markup copiado.
-4. **Reemplazar clases repetitivas por tokens** — si el componente usa clases de botones, inputs o layout que ya están en el design system, preferir los tokens `ui.*` de `designSystem.js` en lugar de las clases hardcodeadas del ejemplo.
-5. **HeadlessUI y Heroicons** ya están instalados — no instalar nada nuevo.
+1. **Primero busca la primitiva.** Si ya existe en `src/ui` (AppButton, TextField, AppModal, ActionMenu,
+   Pagination, DataStates...), se usa la primitiva; el ejemplo solo sirve para la composicion.
+2. **Colores a tokens, nunca literales.** Los ejemplos usan `indigo-*`, `gray-*`, `white`: se sustituyen
+   por los semanticos de `src/index.css`:
+   - fondo de pagina/panel -> `bg-surface`, `bg-surface-muted`, `bg-surface-raised`
+   - texto -> `text-content`, `text-muted` (y `text-subtle` solo para placeholders)
+   - bordes -> `border-border`, `border-border-strong`
+   - accion principal -> la primitiva `AppButton` (clase `.ui-btn-primary`, token `--color-primary`)
+   - estados -> `text-success`, `text-warning`, `text-error`, `text-info` o `StatusBadge` con `tone`
+   - foco -> no se escribe: lo pone el `:focus-visible` global de `index.css`
+3. **Dark mode: se BORRAN las clases `dark:*` del ejemplo.** Aqui el tema oscuro no se escribe pantalla por
+   pantalla: los tokens semanticos ya flipan con `data-theme`. Un `dark:` solo se justifica para una isla
+   que conserva su color en los dos temas (ver skill `theming-dark-mode` del catalogo).
+4. **Todo texto por i18n.** Los textos en ingles del ejemplo pasan a claves en `src/i18n/messages.es.js` y
+   `messages.en.js`, con el mismo juego de claves en los dos.
+5. **Sin cajas de mas (regla `ui-layout-first`).** Los ejemplos envuelven zonas en tarjetas con borde y
+   sombra; en el panel las zonas se separan con espacio, lineas (`.ui-section`) y tipografia.
+6. **Eliminar `'use client'`** (directiva de Next.js) y adaptar imports: Headless UI y Heroicons ya estan
+   instalados. No se instala nada nuevo sin consultarlo.
 
 ---
 
@@ -575,8 +589,8 @@ Componentes base de alta calidad. Referencia para ver la API completa de cada pr
 
 ## Flujo de uso
 
-1. Identificar qué UI se necesita (tabla, modal, form, etc.)
-2. Buscar en el índice de arriba el archivo más cercano
-3. Leer el archivo JSX completo para entender la estructura
-4. Copiar y adaptar al módulo, aplicando las reglas de adaptación (colores, sin dark:, sin 'use client')
-5. Reemplazar clases hardcodeadas por tokens `ui.*` donde corresponda
+1. Identifica que necesitas (tabla, modal, formulario, estado vacio...).
+2. Revisa si `src/ui` ya lo resuelve; si no, busca el ejemplo mas cercano en el indice de arriba.
+3. Lee el archivo completo: estructura, estados, atributos `aria-*`.
+4. Adapta aplicando las reglas: primitivas, tokens, sin `dark:`, textos por i18n, sin cajas de mas.
+5. Corre `npm test`: `deadClasses.test.js` avisa si quedo una utilidad de color que no existe.

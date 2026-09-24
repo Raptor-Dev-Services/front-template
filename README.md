@@ -1,105 +1,76 @@
 # front-template
 
-Plantilla base para aplicaciones React internas. Incluye design system, componentes compartidos, patrones CRUD completos y un módulo de ejemplo funcional conectado al back-template.
+Plantilla de cliente web de Raptor Dev Services: el armazon con el que arranca el front de un producto,
+listo para hablar con el [`back-template`](../back-template).
 
----
+**Stack:** React 19, Vite 8, Tailwind CSS 4, React Router 7, axios, Headless UI, Heroicons. JavaScript.
 
-## Stack
+## Que trae
 
-| Capa | Tecnología | Versión |
-|---|---|---|
-| Framework | React | 19.2.0 |
-| Router | React Router DOM | 7.13.0 |
-| Build | Vite + `@vitejs/plugin-react-swc` | 7.2.4 |
-| Estilos | Tailwind CSS + `@tailwindcss/vite` | 4.1.18 |
-| HTTP | Axios | 1.13.4 |
-| Real-time | Microsoft SignalR | 10.0.0 |
-| Iconos | Heroicons/React | 2.2.0 |
-| UI headless | HeadlessUI/React | 2.2.9 |
-| Drag & Drop | dnd-kit | core 6.3.1 |
-| Excel | xlsx + xlsx-populate | 0.18.5 |
-| CSS-in-JS | styled-components | 6.4.0 |
+- **Cliente HTTP central** con envelope camelCase/PascalCase, refresh de sesion deduplicado ante 401,
+  errores clasificados y traducidos (nunca el ingles de axios) y cancelacion de peticiones obsoletas.
+- **Sesion** con "recordarme" (localStorage o sessionStorage), claims del JWT (roles y permisos) y
+  decodificador UTF-8.
+- **Guardas de ruta** por sesion y por permiso, y menu filtrado por el mismo permiso.
+- **i18n es/en** con carga diferida del idioma, pruebas de paridad y de claves citadas.
+- **Tema claro/oscuro** sin parpadeo, con tokens neutros y contraste AA probado en los dos temas.
+- **Primitivas accesibles** (botones, campos, modal con foco atrapado, menu de acciones, paginacion,
+  estados de datos, toast) y limites de error en dos niveles con pantalla de error y 404.
+- **Modulo de ejemplo `users`**: listado paginado en el servidor con la pagina en la URL, estados de carga,
+  vacio y error, edicion, baja con confirmacion y exportacion completa a CSV.
+- **Despliegue**: recarga unica ante chunks viejos, CSP generada en el build, imagen Docker con nginx
+  endurecido y CI con lint, build, pruebas, auditoria y escaneo de secretos.
 
----
-
-## Inicio rápido
+## Inicio rapido
 
 ```bash
-# 1. Instalar dependencias
 npm install
-
-# 2. Configurar entorno
-cp .env.example .env.local
-# Editar VITE_DEV_API_PROXY_TARGET con la URL del backend
-
-# 3. Arrancar
-npm run dev
+npm run dev        # http://localhost:5179
 ```
 
-Con Docker:
+Con el `back-template` corriendo en `http://localhost:5060`, entra por `/login`. Para apuntar a otra API,
+crea `.env.dev.local` con `VITE_DEV_API_PROXY_TARGET=http://localhost:PUERTO`.
 
-```bash
-docker compose -f compose-dev.yaml up
-```
-
-El back-template debe estar corriendo en `http://localhost:5080`.
-
----
+Si trabajas con Claude Code, instala el catalogo en el repo con **`/catalogo install`**.
 
 ## Scripts
 
-| Script | Descripción |
+| Script | Que hace |
 |---|---|
-| `npm run dev` | Servidor Vite dev con proxy |
-| `npm run dev2` | Dev con `--host` (acceso en red local) |
-| `npm run build` | Build de producción |
-| `npm run build:prod` | Build `--mode production` |
-| `npm run build:staging` | Build `--mode staging` (lee `.env.staging`) |
-| `npm run lint` | ESLint |
-| `npm run preview` | Previsualizar build estático |
+| `npm run dev` | Vite en 5179 con `.env.dev` y proxy de `/api` |
+| `npm run dev:host` | Igual, expuesto en la red local |
+| `npm run build` | Build de produccion en `dist/` |
+| `npm run build:staging` | Build con `.env.staging` |
+| `npm run preview` | Sirve `dist/` en 4179 |
+| `npm run lint` | ESLint (flat config) |
+| `npm test` / `npm run test:watch` | Vitest |
 
----
-
-## Estructura del proyecto
+## Estructura
 
 ```
 src/
-  api/              → Clientes Axios + servicios HTTP por dominio
-  auth/             → Gestión de sesión y JWT (session.js)
-  components/       → Componentes por dominio
-    layout/         → Componentes globales reutilizables (navbar, modales, notificaciones)
-      Shared/       → StatusBadge, ActionMenu
-    primitives/     → Átomos: Modal, FormField, Pagination
-    example/        → Módulo de ejemplo (users)
-  config/           → Variables de entorno (env.js)
-  hooks/            → useMediaQuery.js
-  pages/            → Un archivo por ruta
-  routes/           → AppRoutes.jsx + wideRoutes.js
-  styles/           → designSystem.js (tokens Tailwind)
-  utils/            → dateTime.js, csv.js, index.js
-  App.jsx
-  main.jsx
-  index.css
+  api/        cliente HTTP y servicios        auth/      sesion, JWT, permisos
+  features/   pantallas por feature           i18n/      idiomas
+  layouts/    AppLayout, PublicLayout          routes/    rutas y guardas
+  pages/      adaptadores de ruta              ui/        primitivas y tema
+  styles/     tokens                           utils/     csv, url, chunks
+  config/     env.js
 ```
 
----
+## Documentacion
 
-## Documentación
-
-| Doc | Contenido |
+| Documento | Contenido |
 |---|---|
-| [docs/Architecture.md](docs/Architecture.md) | Capas, flujo de datos, anatomía de módulo |
-| [docs/Components.md](docs/Components.md) | API completa de componentes compartidos |
-| [docs/DesignSystem.md](docs/DesignSystem.md) | Todos los tokens `ui.*`, colores, tipografía |
-| [docs/Patterns.md](docs/Patterns.md) | Patrones de código con ejemplos completos |
-| [docs/Packages.md](docs/Packages.md) | Todos los paquetes npm con uso y API |
-| [docs/Environment.md](docs/Environment.md) | Variables de entorno, Docker, despliegue |
-| [docs/Rules.md](docs/Rules.md) | Reglas explícitas del proyecto |
+| [`docs/Architecture.md`](docs/Architecture.md) | Estructura, flujos, cliente HTTP, sesion, rutas, errores |
+| [`docs/Patterns.md`](docs/Patterns.md) | Como agregar un modulo, paso a paso |
+| [`docs/Components.md`](docs/Components.md) | Primitivas de `src/ui` y cuando usar cada feedback |
+| [`docs/DesignSystem.md`](docs/DesignSystem.md) | Tokens, clases `.ui-*`, tema, accesibilidad visual |
+| [`docs/Environment.md`](docs/Environment.md) | Variables, puertos, Docker, CI |
+| [`docs/Rules.md`](docs/Rules.md) | Reglas no negociables y anti-patrones |
+| [`docs/TailwindPlus.md`](docs/TailwindPlus.md) | La libreria de referencia UI y como adaptarla |
+| [`CLAUDE.md`](CLAUDE.md) | Instrucciones para Claude Code (espejo: `AGENTS.md`) |
 
----
+## Usarla para un producto
 
-## Módulo de ejemplo
-
-`/app/example/users` — CRUD completo de usuarios conectado al back-template.
-
-Demuestra el patrón completo: `api service → hook → page → Desktop/Mobile`.
+Ver la seccion "Al usar la plantilla para un producto" de [`CLAUDE.md`](CLAUDE.md): nombre, marca, prefijo
+de almacenamiento, permisos y favicon.

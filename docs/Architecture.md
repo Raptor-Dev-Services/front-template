@@ -1,186 +1,128 @@
 # Arquitectura
 
----
-
-## Capas del sistema
-
-```
-┌─────────────────────────────────────────────┐
-│                   Pages                      │  src/pages/
-│   Una página por ruta. Solo consume el hook  │
-├─────────────────────────────────────────────┤
-│               Components                     │  src/components/<dominio>/
-│   Desktop/ + Mobile/ + Shared/               │
-├──────────────────────┬──────────────────────┤
-│      Module Hook     │   Layout / Primitives │  src/components/<dominio>/use*.js
-│  Estado + lógica +   │   Modal, FormField,   │  src/components/layout/
-│  filtros + acciones  │   AppNotification…    │  src/components/primitives/
-├──────────────────────┴──────────────────────┤
-│                  API Services                │  src/api/<domain>Service.js
-│   Funciones async puras. resolveApiEnvelope  │
-├─────────────────────────────────────────────┤
-│              Axios Client + Interceptors     │  src/api/clients.js
-│   Bearer token, error normalizado            │
-├─────────────────────────────────────────────┤
-│                 Auth / Session               │  src/auth/session.js
-│   JWT en localStorage, getProfile()         │
-└─────────────────────────────────────────────┘
-```
+Cliente web React 19 + Vite 8 + Tailwind CSS 4, en JavaScript. Companero del `back-template`: habla con
+su API REST (envelope unico, JWT con claims `permission` y `tenant_id`).
 
 ---
 
-## Flujo de datos — lectura
+## Estructura
 
 ```
-Page mount
-  └─ useEffect → loadData()               (hook)
-        └─ getDomainEntities()            (api service)
-              └─ prodApi.get(url)         (axios client)
-                    └─ resolveApiEnvelope (clients.js)
-                          └─ setRows([])  (hook state)
-                                └─ pagedRows (useMemo)
-                                      └─ <TableDesktop rows={pagedRows} />
+src/
+  main.jsx            arranque: manejador de chunks viejos + carga del idioma, y luego monta <App/>
+  App.jsx             composition root: ErrorBoundary > ThemeProvider > I18nProvider > BrowserRouter
+  index.css           tokens (@theme), tema oscuro, capa .ui-*, foco global, reduced-motion
+  routes/
+    AppRoutes.jsx     mapa de rutas
+    guards.jsx        RequireAuth, RequirePermission
+    lazyRoute.js      React.lazy con recarga unica ante un chunk que ya no existe
+  layouts/
+    AppLayout.jsx     panel con sesion: sidebar / drawer movil, topbar, limite de error interior
+    PublicLayout.jsx  sin sesion: login y 404
+    navItems.js       items del menu + filterNavItems (puro, probado)
+  pages/              adaptadores de ruta de UNA linea (re-export de la feature)
+  features/
+    <feature>/
+      <Name>Page.jsx  la pantalla
+      hooks/          estado y orquestacion (useX.js)
+      components/     piezas de ESTA feature
+      utils/          funciones puras de ESTA feature
+    shared/hooks/     hooks reutilizables (useFormState, useAbortableLoad, useDebouncedValue,
+                      useOnVisible, useCsvExport)
+  api/
+    client.js         instancia UNICA de axios + envelope + refresh + clasificacion de errores
+    paging.js         fetchAllPages
+    auth.js, users.js servicios por dominio
+  auth/
+    session.js        tokens (recordarme) y claims del JWT
+    jwt.js            decodificador UTF-8 del payload
+    permissions.js    nombres de permisos que consulta el front
+  i18n/               I18nProvider, useI18n, translate (pura), diccionarios es/en
+  ui/                 primitivas accesibles (ver Components.md) y theme/
+  styles/             tokens.js (espejo JS), designSystem.js (cx), pruebas de tokens
+  utils/              csv, url, loadStatus, chunkRecovery
+  config/env.js       UNICO lector de import.meta.env
+  testUtils/          ayudas para pruebas (fakeJwt); no las importa la app
+vite/csp.js           plugin de build que inyecta la Content-Security-Policy
 ```
 
-## Flujo de datos — escritura
+Las pruebas viven junto al codigo: `algo.test.js(x)` al lado de `algo.js(x)`.
+
+---
+
+## Flujo de una lectura
 
 ```
-User click "Guardar"
-  └─ handleSave()                         (hook)
-        └─ createDomainEntity(form)       (api service)
-              └─ prodApi.post(url, body)  (axios client)
-                    └─ resolveApiEnvelope
-                          ├─ setNotification({ type:'success' })
-                          ├─ setFormOpen(false)
-                          └─ loadData()   (reload)
+UsersPage
+  -> useUsers()                    estado: status / items / total / page (de la URL)
+    -> useAbortableLoad(load)      corre load(signal) y aborta al cambiar de pagina o desmontar
+      -> listUsers({ page, signal })   src/api/users.js
+        -> http.get('/api/users')      src/api/client.js (Bearer por interceptor)
+        <- resolveApiEnvelope(res)     data o Error con el message del servidor
+        <- normalizePage(data)         { items, total } venga como items o profiles
+  <- LOAD_STATUS.loading | success | error  ->  RowsSkeleton | tabla o DataEmpty | DataError
+```
+
+## Flujo de una escritura
+
+```
+UsersPage -> useUsers().actions.edit(id, payload)
+  -> runAction: updateUser() y, si sale bien, recarga la lista
+  <- { ok: true } | { ok: false, message }     NUNCA lanza
+UsersPage -> si ok: AppNotification de exito; si no: el modal muestra message en linea
 ```
 
 ---
 
-## Anatomía de un módulo
+## Cliente HTTP y envelope
 
-Cada módulo de dominio vive en `src/components/<dominio>/<modulo>/`:
+- **Una sola instancia** (`http` en `src/api/client.js`), timeout de 20 s, `baseURL = env.apiBaseUrl`.
+- **Envelope**: `{ isSuccess | success, data, message, errors, utcTimeStamp }`, camelCase o PascalCase.
+  `resolveApiEnvelope(respuestaAxios | cuerpo)` devuelve `data` o lanza con el mensaje del servidor
+  (`message`, o la lista `errors`), con el envelope en `error.envelope`.
+- **Errores**: `extractApiErrorKey(err)` devuelve el mensaje del backend tal cual o una clave de
+  `API_ERROR_KEYS` (`forbidden`, `timeout`, `network`, `unexpected`...). Nunca el texto ingles de axios
+  ni una pagina HTML. `extractApiErrorMessage(err)` lo traduce. `isAbortError(err)` distingue una
+  cancelacion de un fallo.
+- **Refresh**: ante un 401 fuera de `/api/auth/*`, `handleResponseError` renueva el par de tokens UNA vez
+  (un solo refresh en vuelo compartido) y reintenta. Si falla, limpia la sesion y manda a `/login`
+  (salvo que ya se este ahi).
 
-```
-src/components/example/users/
-  useExampleUsers.js          ← Hook: TODO el estado y la lógica
-  Desktop/
-    ExampleUsersTableDesktop.jsx   ← Tabla para sm+
-  Mobile/
-    ExampleUsersCardsMobile.jsx    ← Tarjetas para mobile
-```
+## Sesion
 
-La página en `src/pages/ExampleUsers.jsx` solo:
-1. Llama al hook (`const m = useExampleUsers()`)
-2. Detecta breakpoint (`useMediaQuery`)
-3. Renderiza Desktop o Mobile según breakpoint
-4. Monta modales y notificación
+- `setTokens({ accessToken, refreshToken, rememberMe })`: con "recordarme" en `localStorage`, sin el en
+  `sessionStorage`. El refresh reescribe en el mismo lugar. Todo acceso a storage va en `try/catch`.
+- `getClaims()` -> `{ sub, userName, email, tenantId, roles[], permissions[], expiresAt }`.
+- `isAuthenticated()`: access vigente, o vencido con refresh token (la primera peticion lo renueva).
+- `hasPermission(p)`, `hasAnyRole(roles)`. El claim de permisos es `permission` (string o arreglo).
+- El front **no valida la firma** y **no envia `tenant_id`**: la autoridad es el backend.
 
-**Regla:** La página no tiene estado propio ni lógica de negocio.
+## Rutas y guardas
 
----
-
-## Patrón de nombres de archivos
-
-| Tipo | Patrón | Ejemplo |
+| Ruta | Guarda | Layout |
 |---|---|---|
-| Servicio API | `<domain>Service.js` | `exampleUsersService.js` |
-| Hook de módulo | `use<Domain><Module>.js` | `useExampleUsers.js` |
-| Página | `<Domain><Module>.jsx` | `ExampleUsers.jsx` |
-| Tabla desktop | `<Domain>TableDesktop.jsx` | `ExampleUsersTableDesktop.jsx` |
-| Tarjetas mobile | `<Domain>CardsMobile.jsx` | `ExampleUsersCardsMobile.jsx` |
-| Utils del módulo | `<domain><Module>Utils.js` | `exampleUsersUtils.js` |
+| `/` | `RequireAuth` | AppLayout |
+| `/users` | `RequireAuth` + `RequirePermission(users.read)` | AppLayout |
+| `/login` | ninguna (si ya hay sesion, redirige) | PublicLayout |
+| `*` (404) | ninguna | PublicLayout |
 
----
+`RequireAuth` guarda el origen en `state.from` y el login vuelve ahi. Las rutas del panel son diferidas
+(`lazyRoute`) y su `Suspense` vive dentro del layout: el menu no parpadea al navegar.
 
-## Alias de rutas (vite.config.js)
+## Limites de error
 
-| Alias | Ruta |
-|---|---|
-| `@styles` | `src/styles/` |
-| `@api` | `src/api/` |
-| `@utils` | `src/utils/` |
-| `@components` | `src/components/` |
-| `@pages` | `src/pages/` |
-| `@routes` | `src/routes/` |
+Dos niveles (regla `error-screens`): el **exterior** en `App.jsx` envuelve tambien a los providers; el
+**interior** en cada layout envuelve el `<Outlet />` con `key={pathname}`. `ErrorBoundary` no depende de
+ningun contexto: traduce con la funcion pura. El 404 usa la misma `ErrorScreen`.
 
----
+## Despliegues y chunks viejos
 
-## Proxy de desarrollo
-
-El proxy de Vite reescribe `/api/*` → `VITE_DEV_API_PROXY_TARGET`. Esto evita CORS en desarrollo y permite apuntar a distintos backends sin cambiar el código fuente.
-
-```
-Browser → /api/example/users
-  → Vite dev server proxy
-    → http://localhost:5080/api/example/users
-```
-
-En producción `VITE_API_BASE_URL` es la URL completa del API y no hay proxy.
-
----
-
-## API Envelope
-
-Todas las respuestas del backend siguen la forma:
-
-```json
-{
-  "isSuccess": true,
-  "data": [ ... ],
-  "message": "OK",
-  "utcTimeStamp": "2025-01-01T00:00:00Z"
-}
-```
-
-`resolveApiEnvelope(response.data)` maneja tres casos:
-
-| Payload | Resultado |
-|---|---|
-| `{ isSuccess: true, data: [...] }` | Retorna `data` |
-| `{ isSuccess: false, message: "Error X" }` | Lanza `Error("Error X")` |
-| Array plano o dato sin envelope | Lo retorna tal cual |
-
-`extractApiErrorMessage(error)` extrae el mensaje legible de cualquier error rechazado por el interceptor.
-
----
-
-## Auth / Sesión
-
-El token JWT se almacena en `localStorage` bajo la clave `appToken`. El perfil decodificado bajo `appProfile`.
-
-```
-Login externo
-  → setSession(token, profile)   → localStorage
-  → Axios interceptor             → Authorization: Bearer <token>
-  → getProfile()                  → { name, employee, ... }
-  → isTokenValid()                → verifica exp del JWT
-  → clearSession()                → logout
-```
-
----
-
-## Rutas y layout
-
-`AppRoutes.jsx` define dos tipos de layout:
-
-- **Constrained**: `max-w-screen-xl mx-auto` — para módulos con formularios y tablas normales
-- **Wide**: sin max-width — para tablas muy anchas o dashboards
-
-Una ruta se agrega al layout wide registrándola en `src/routes/wideRoutes.js`.
-
----
+Tras un despliegue, una pestana abierta pide chunks que ya no existen. `lazyRoute` y el manejador de
+`vite:preloadError` recargan **una vez** (marca en `sessionStorage`, puesta antes de recargar y limpiada
+al primer acierto). `index.html` se sirve con `no-cache` y `/assets` con cache inmutable (`nginx.conf`).
 
 ## Responsive
 
-Todos los módulos tienen variante desktop y mobile. La decisión se toma en la página con:
-
-```js
-const isDesktop = useMediaQuery('(min-width: 640px)')
-// sm breakpoint de Tailwind = 640px
-```
-
-- Desktop (`isDesktop === true`): tabla `<table>` con columnas
-- Mobile (`isDesktop === false`): tarjetas `<article>` con `<dl>`
-
-Los modales son compartidos — no tienen variante.
+Mobile-first. El panel usa sidebar fija desde `lg` y un drawer (`Dialog` de Headless UI) por debajo. Las
+tablas se muestran completas desde `md` y como lista apilada con `StackedField` en movil: es la misma
+lista con dos formas dentro del mismo componente, no dos componentes que puedan divergir.

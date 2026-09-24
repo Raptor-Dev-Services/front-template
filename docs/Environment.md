@@ -1,207 +1,85 @@
-# Entorno y despliegue
+# Entorno, desarrollo y despliegue
 
----
+## Variables
 
-## Variables de entorno
+Todas se leen en `src/config/env.js` (unico lector de `import.meta.env`). **Toda `VITE_*` es publica**:
+Vite la hornea en el bundle y cualquiera la lee en las DevTools. Nunca va ahi un secreto.
 
-Vite expone solo variables con prefijo `VITE_` al código del navegador. Las variables sin prefijo (como `DEV_PORT`) son solo para herramientas externas (Docker Compose, scripts de build).
-
-### Variables del proyecto
-
-| Variable | Dónde se usa | Descripción |
+| Variable | Default | Que es |
 |---|---|---|
-| `VITE_APP_TITLE` | `index.html` (`%VITE_APP_TITLE%`) + `src/config/env.js` | Título de la app en la pestaña del navegador |
-| `VITE_API_BASE_URL` | `src/config/env.js` → `apiClient.baseURL` | URL base del API (baked en build) |
-| `VITE_DEV_API_PROXY_TARGET` | `vite.config.js` proxy | URL a la que el proxy de dev reenvía `/api/*` |
+| `VITE_APP_TITLE` | `front-template` | Titulo de la pestana (`%VITE_APP_TITLE%` en index.html) |
+| `VITE_API_BASE_URL` | `''` | ORIGEN de la API, **sin** `/api` (los servicios ya piden `/api/...`). Vacio = mismo origen |
+| `VITE_DEFAULT_LOCALE` | `es` | Idioma de arranque (`es` o `en`); la eleccion guardada del usuario manda |
+| `VITE_SOFTWARE_VERSION` | `dev-local` | Version que muestra el menu |
+| `VITE_AUTH_ORIGIN` | (vacio) | Opcional: origen de un proveedor de identidad externo; solo lo usa la CSP |
+| `VITE_DEV_API_PROXY_TARGET` | `http://localhost:5060` | Solo el servidor de desarrollo: a donde reenvia `/api` |
 
-### Sistema de modos de Vite
+`env.readVar` trata la cadena vacia como ausente: `VITE_X=` en un `.env` cae al default.
 
-| Comando | Modo | Archivo leído |
+## Archivos
+
+| Archivo | Versionado | Lo usa |
 |---|---|---|
-| `npm run dev` | `development` | `.env` + `.env.development` |
-| `npm run build` | `production` | `.env` + `.env.production` |
-| `npm run build:staging` | `staging` | `.env` + `.env.staging` |
-| `npm run build:prod` | `production` | `.env` + `.env.production` |
+| `.env.example` | si | referencia comentada de todas las variables |
+| `.env.dev` | si (solo valores publicos) | `npm run dev` (`vite --mode dev`) y `compose-dev.yaml` |
+| `.env.staging` | si (solo valores publicos) | `npm run build:staging` |
+| cualquier otro `.env*` | **no** (`.gitignore`) | overrides locales, p. ej. `.env.dev.local` |
 
-Vite carga los archivos en este orden de prioridad (mayor prioridad primero):
-```
-.env.[mode].local   (ignorado por git)
-.env.[mode]
-.env.local          (ignorado por git)
-.env
-```
-
----
-
-## Archivos de entorno
-
-### `.env.example`
-Plantilla de referencia. Documenta todas las variables disponibles. Siempre mantener actualizado. **Commitear.**
-
-### `.env.dev`
-Configuración para desarrollo. Usa el proxy de Vite — `VITE_API_BASE_URL` queda vacío y las peticiones pasan por `/api` → proxy. **Commitear** (no contiene secretos).
-
-### `.env.staging`
-Configuración para staging. `VITE_API_BASE_URL` apunta a la URL real de staging. **Commitear** (usar URLs genéricas, sin tokens).
-
-### `.env` / `.env.local` / `.env.*.local`
-Sobreescrituras locales y secretos. **Nunca commitear.** El `.gitignore` los excluye.
-
----
-
-## Desarrollo local (sin Docker)
+## Desarrollo local
 
 ```bash
-# 1. Instalar
 npm install
-
-# 2. Crear override local
-cp .env.dev .env.local
-
-# 3. Editar .env.local — apuntar proxy al backend local
-VITE_DEV_API_PROXY_TARGET=http://localhost:5080
-
-# 4. Arrancar
-npm run dev
-# → http://localhost:5173
+npm run dev          # http://localhost:5179 (strictPort: falla si el puerto esta ocupado)
 ```
 
-Para acceso desde otros dispositivos en la misma red:
-
-```bash
-npm run dev2   # equivale a: vite --host
-# → http://0.0.0.0:5173  (accesible por IP local)
-```
-
----
+- **Puerto 5179**: 5173-5178 son de otros productos de la maquina (`devstack/PUERTOS.md` del catalogo).
+- El navegador habla con el mismo origen y Vite reenvia `/api` a `VITE_DEV_API_PROXY_TARGET`: sin CORS.
+- La API del back-template escucha en `http://localhost:5060`. Para apuntar a otra, crea `.env.dev.local`
+  con `VITE_DEV_API_PROXY_TARGET=...`.
 
 ## Desarrollo con Docker
 
-`compose-dev.yaml` monta el código fuente y corre el servidor Vite dentro de un contenedor `node:20-alpine`. Hot-reload funciona vía polling de sistema de archivos.
-
 ```bash
-# Arrancar
 docker compose -f compose-dev.yaml up
-
-# Arrancar en background
-docker compose -f compose-dev.yaml up -d
-
-# Ver logs
-docker compose -f compose-dev.yaml logs -f app
-
-# Detener
-docker compose -f compose-dev.yaml down
 ```
 
-Acceso: `http://localhost:5173`
+Monta el codigo, deja `node_modules` en un volumen (los binarios del host no sirven en Alpine) y reenvia
+`/api` a `http://host.docker.internal:5060`.
 
-### Proxy desde Docker al backend en el host
-
-El backend (back-template) corre en el host en el puerto 5080. Desde dentro del contenedor se accede como `host.docker.internal:5080`.
-
-- **Mac/Windows (Docker Desktop)**: `host.docker.internal` resuelve automáticamente.
-- **Linux**: el `compose-dev.yaml` ya incluye `extra_hosts: - "host.docker.internal:host-gateway"`.
-
-El `.env.dev` ya está configurado con:
-```
-VITE_DEV_API_PROXY_TARGET=http://host.docker.internal:5080
-```
-
-### node_modules en Docker
-
-El `compose-dev.yaml` usa un volumen nombrado para `node_modules`:
-```yaml
-volumes:
-  - .:/app
-  - node_modules:/app/node_modules   # ← mantiene los módulos dentro del contenedor
-```
-
-Esto evita conflictos de binarios nativos entre la plataforma del host (Windows) y el contenedor (Linux). Si cambias dependencias en `package.json`:
+## Build
 
 ```bash
-# Reconstruir el contenedor para reinstalar deps
-docker compose -f compose-dev.yaml down -v   # -v elimina el volumen de node_modules
-docker compose -f compose-dev.yaml up --build
+npm run build            # modo production -> dist/
+npm run build:staging    # modo staging (.env.staging)
+npm run preview          # sirve dist/ en http://localhost:4179
 ```
 
----
+El build inyecta una Content-Security-Policy como `<meta>` (`vite/csp.js`), derivada de
+`VITE_API_BASE_URL` y `VITE_AUTH_ORIGIN`, con el hash del script del tema. Un origen invalido rompe el
+build en vez de emitir una politica que bloquee la API en silencio.
 
-## Build de producción
-
-El `Dockerfile` usa multi-stage build: `node:20-alpine` para compilar y `nginx:stable-alpine` para servir.
-
-### Build estándar (producción)
+## Imagen Docker
 
 ```bash
-docker build \
-  --build-arg VITE_APP_TITLE="Mi App" \
-  --build-arg VITE_API_BASE_URL="https://api.example.com" \
-  -t front-template:latest .
+docker build -t front-template \
+  --build-arg BUILD_MODE=production \
+  --build-arg VITE_API_BASE_URL=https://api.example.com \
+  --build-arg VITE_SOFTWARE_VERSION=1.0.0 .
+docker run -p 8080:80 front-template
 ```
 
-### Build staging
+- Los `VITE_*` llegan como **build ARGs**: cambiarlos exige reconstruir la imagen. `.env.*` no entra al
+  contexto (`.dockerignore`), salvo `.env.example`.
+- `VITE_API_BASE_URL` es el origen **como lo ve el navegador**, no el nombre del servicio de Compose.
+- nginx sirve el bundle (sin proxy a la API): fallback de SPA, `/assets` inmutable por un ano,
+  `index.html` sin cache, gzip, cabeceras de seguridad (`nginx/security-headers.conf`, incluido en cada
+  location) con `frame-ancestors` y una nota para activar HSTS detras de TLS.
+- `HEALTHCHECK` con `wget` a `127.0.0.1` (no `localhost`: resolveria a IPv6 y nginx escucha en IPv4).
 
-```bash
-docker build \
-  --build-arg BUILD_MODE=staging \
-  --build-arg VITE_APP_TITLE="Mi App [STAGING]" \
-  --build-arg VITE_API_BASE_URL="https://api.staging.example.com" \
-  -t front-template:staging .
-```
+## CI
 
-### Correr el contenedor buildeado
-
-```bash
-docker run -p 8080:80 front-template:latest
-# → http://localhost:8080
-```
-
----
-
-## Variables en el build Docker
-
-Las variables `VITE_*` se **bajan en el código JavaScript en tiempo de build** (no son variables de entorno en runtime). Esto significa:
-
-- El valor de `VITE_API_BASE_URL` queda literal dentro del bundle JS
-- Cambiar la URL del API en producción requiere un nuevo build
-- No se pueden cambiar inyectando env vars al contenedor nginx en runtime
-
-Para arquitecturas que necesiten configuración en runtime, la solución común es inyectar un `window.__ENV__` desde nginx con un template:
-
-```nginx
-# nginx.conf — approach runtime config (no implementado en el template)
-location /config.js {
-    return 200 'window.__ENV__ = { API_URL: "$API_URL" };';
-    add_header Content-Type application/javascript;
-}
-```
-
----
-
-## nginx.conf
-
-Configuración del servidor nginx en el contenedor de producción:
-
-- **SPA fallback**: todas las rutas sirven `index.html` (`try_files $uri $uri/ /index.html`)
-- **Cache de assets**: archivos con fingerprint (JS/CSS buildeados por Vite) se cachean 1 año con `Cache-Control: public, immutable`
-- **Gzip**: compresión para JS, CSS, JSON, SVG y text
-- **Security headers**: `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`
-- **Puerto**: 80
-
----
-
-## Estructura de archivos de configuración
-
-```
-front-template/
-  .env.example          → plantilla, commitear
-  .env.dev              → config desarrollo, commitear
-  .env.staging          → config staging, commitear
-  .env                  → secretos locales, NO commitear (en .gitignore)
-  .env.local            → override local, NO commitear
-  Dockerfile            → build multi-stage (node → nginx)
-  nginx.conf            → config nginx para la imagen runner
-  compose-dev.yaml      → orquestación desarrollo Docker
-  .dockerignore         → excluye node_modules, dist, docs, etc.
-  .gitignore            → excluye .env, .env.*.local, dist, node_modules
-```
+`.github/workflows/ci.yml`: `npm ci`, lint, build y test bloqueantes; `npm audit` en modo aviso; gitleaks
+fijado (8.30.1) sobre el historial completo, bloqueante.
+`.github/workflows/dependencias-estables.yml`: `scripts/check-prerelease-deps.py` falla si entra un
+paquete prerelease o una version flotante no declarada en `PRERELEASE-PERMITIDOS.txt`. Localmente en
+Windows: `python scripts/check-prerelease-deps.py` (`python3` suele ser el alias vacio de la Store).
