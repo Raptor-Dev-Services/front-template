@@ -3,7 +3,6 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { wideRoutes } from './wideRoutes'
 import AppNavbar from '../components/layout/AppNavbar'
 import { isTokenValid } from '../auth/session'
-import { ui } from '../styles/designSystem'
 
 const Home         = lazy(() => import('../pages/Home'))
 const Login        = lazy(() => import('../pages/Login'))

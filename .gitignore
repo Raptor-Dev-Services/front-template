@@ -12,14 +12,16 @@ out/
 .vite/
 *.local
 
-# Environment — local overrides (NEVER commit)
+# Environment. Se versionan SOLO los archivos de valores publicos (.env.example, .env.dev,
+# .env.staging): todo VITE_* termina horneado en el bundle, asi que ahi no puede haber secretos.
+# Cualquier otra variante (.env, .env.local, .env.produccion, .env.respaldo...) queda ignorada: con
+# una lista de nombres concretos, un `.env.produccion` aparecia como untracked -indistinguible de un
+# archivo nuevo cualquiera- y era commiteable.
 .env
-.env.local
-.env.dev.local
-.env.staging.local
-.env.production.local
-.env.development.local
-.env.test.local
+.env.*
+!.env.example
+!.env.dev
+!.env.staging
 
 # Logs
 logs/
@@ -49,8 +51,10 @@ Desktop.ini
 # Testing
 coverage/
 
-# Claude Code
-.claude/
+# Claude Code: .claude/ SI se versiona (agentes, skills y reglas del catalogo instalados en el
+# repo). Solo se ignora lo que es de la maquina o de la sesion.
+.claude/settings.local.json
+.claude/worktrees/
 
 # docs/Tailwind Plus — build artifacts y deps (nunca commitear binarios generados)
 docs/Tailwind Plus/component-library/node_modules/

@@ -1,32 +1,31 @@
 name: front-template-dev
 
+# Servidor de desarrollo de Vite dentro de un contenedor. Alternativa a `npm run dev` en la maquina.
 services:
   app:
-    image: node:20-alpine
+    image: node:22-alpine
     working_dir: /app
 
-    # Map container port 5173 → host — change host side if there are conflicts
+    # 5179: 5173-5178 son de otros productos de esta maquina (devstack/PUERTOS.md del catalogo).
     ports:
-      - "5173:5173"
+      - "5179:5179"
 
     volumes:
-      # Mount source so hot-reload picks up changes
+      # El codigo montado, para que el HMR vea los cambios.
       - .:/app
-      # Keep node_modules inside the container to avoid platform conflicts
+      # node_modules dentro del contenedor: los binarios del host (Windows/Mac) no sirven en Alpine.
       - node_modules:/app/node_modules
 
-    env_file:
-      - .env.dev
-
     environment:
-      # Force file-system polling so Vite HMR works inside Docker on Windows/Mac
+      # Polling: sin esto el HMR no detecta cambios dentro de Docker en Windows/Mac.
       CHOKIDAR_USEPOLLING: "true"
-      VITE_POLL: "true"
+      # Dentro del contenedor `localhost` es el propio contenedor: la API del host se alcanza asi.
+      # Las variables del proceso ganan a las de .env.dev.
+      VITE_DEV_API_PROXY_TARGET: http://host.docker.internal:5060
 
-    # Install (if needed) then start Vite bound to all interfaces
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
+    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
 
-    # Lets the container reach the host machine as host.docker.internal (Linux)
+    # Resuelve host.docker.internal tambien en Linux.
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

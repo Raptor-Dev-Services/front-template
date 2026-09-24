@@ -1,11 +1,11 @@
 import axios from 'axios'
-import { API_BASE_URL } from '../config/env'
+import { env } from '../config/env'
 import { resolveApiEnvelope } from './clients'
 
 // Bare instance — no auth interceptors, no Bearer header.
 // Used for login/register/refresh so those requests never trigger the 401 handler.
 const authAxios = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: env.apiBaseUrl,
   headers: { 'Content-Type': 'application/json' },
 })
 

@@ -1,11 +1,11 @@
 import axios from 'axios'
-import { API_BASE_URL } from '../config/env'
+import { env } from '../config/env'
 import { getToken, getRefreshToken, setSession, clearSession, getRememberPreference } from '../auth/session'
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' }
 
 export const apiClient = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: env.apiBaseUrl,
   headers: JSON_HEADERS,
 })
 
@@ -82,7 +82,7 @@ apiClient.interceptors.response.use(
 
       try {
         const res = await axios.post(
-          `${API_BASE_URL || ''}/api/auth/refresh`,
+          `${env.apiBaseUrl}/api/auth/refresh`,
           { refreshToken: storedRefresh },
           { headers: JSON_HEADERS },
         )
