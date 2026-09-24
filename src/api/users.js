@@ -28,9 +28,9 @@ export function normalizePage(data) {
   return { items: rows.map(normalizeUser), total: Number(total) || 0 }
 }
 
-/** Lista paginada. GET /api/users?page&pageSize -> { items, total }. */
+/** Lista paginada. GET /api/v1/users?page&pageSize -> { items, total }. */
 export async function listUsers({ page = 1, pageSize = 20, signal } = {}) {
-  const res = await http.get('/api/users', { params: { page, pageSize }, signal })
+  const res = await http.get('/api/v1/users', { params: { page, pageSize }, signal })
   return normalizePage(resolveApiEnvelope(res))
 }
 
@@ -39,15 +39,15 @@ export function listAllUsers({ signal } = {}) {
   return fetchAllPages((page, pageSize) => listUsers({ page, pageSize, signal }))
 }
 
-/** Edita el nombre. PUT /api/users/{publicId}  body: { fullName } */
+/** Edita el nombre. PUT /api/v1/users/{publicId}  body: { fullName } */
 export async function updateUser(publicId, { fullName }) {
-  const res = await http.put(`/api/users/${encodeURIComponent(publicId)}`, { fullName })
+  const res = await http.put(`/api/v1/users/${encodeURIComponent(publicId)}`, { fullName })
   return resolveApiEnvelope(res)
 }
 
-/** Da de baja (soft, nunca borrado fisico). DELETE /api/users/{publicId} */
+/** Da de baja (soft, nunca borrado fisico). DELETE /api/v1/users/{publicId} */
 export async function disableUser(publicId) {
-  const res = await http.delete(`/api/users/${encodeURIComponent(publicId)}`)
+  const res = await http.delete(`/api/v1/users/${encodeURIComponent(publicId)}`)
   return resolveApiEnvelope(res)
 }
 

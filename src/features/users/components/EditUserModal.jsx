@@ -5,7 +5,7 @@ import { useI18n } from '../../../i18n/useI18n.js'
 import { useFormState } from '../../shared/hooks/useFormState.js'
 
 /**
- * EditUserModal - corrige el nombre de un usuario (PUT /api/users/{id} solo acepta fullName).
+ * EditUserModal - corrige el nombre de un usuario (PUT /api/v1/users/{id} solo acepta fullName).
  *
  * `onSubmit(payload)` devuelve `{ ok, message }`; el error del servidor se muestra en linea sin
  * sustituir su texto. `resetKey` incluye el id: reabrir el modal para OTRA cuenta no hereda lo que se

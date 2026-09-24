@@ -76,6 +76,7 @@ export const en = {
       emailRequired: 'Enter your email.',
       emailInvalid: 'The email format is not valid.',
       passwordRequired: 'Enter your password.',
+      twoFactorUnsupported: 'This account has two-step verification enabled, which this template does not support yet.',
     },
   },
   home: {

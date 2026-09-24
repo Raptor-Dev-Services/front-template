@@ -23,7 +23,7 @@ export const API_ERROR_KEYS = Object.freeze({
   forbidden: 'common.errorForbidden',
 })
 
-const AUTH_PREFIX = '/api/auth/'
+const AUTH_PREFIX = '/api/v1/auth/'
 const REFRESH_URL = `${AUTH_PREFIX}refresh`
 
 /** Cliente HTTP central. baseURL es el ORIGEN de la API (vacio = mismo origen, proxy de Vite). */

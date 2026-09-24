@@ -57,7 +57,7 @@ UsersPage
   -> useUsers()                    estado: status / items / total / page (de la URL)
     -> useAbortableLoad(load)      corre load(signal) y aborta al cambiar de pagina o desmontar
       -> listUsers({ page, signal })   src/api/users.js
-        -> http.get('/api/users')      src/api/client.js (Bearer por interceptor)
+        -> http.get('/api/v1/users')      src/api/client.js (Bearer por interceptor)
         <- resolveApiEnvelope(res)     data o Error con el message del servidor
         <- normalizePage(data)         { items, total } venga como items o profiles
   <- LOAD_STATUS.loading | success | error  ->  RowsSkeleton | tabla o DataEmpty | DataError
@@ -84,7 +84,7 @@ UsersPage -> si ok: AppNotification de exito; si no: el modal muestra message en
   `API_ERROR_KEYS` (`forbidden`, `timeout`, `network`, `unexpected`...). Nunca el texto ingles de axios
   ni una pagina HTML. `extractApiErrorMessage(err)` lo traduce. `isAbortError(err)` distingue una
   cancelacion de un fallo.
-- **Refresh**: ante un 401 fuera de `/api/auth/*`, `handleResponseError` renueva el par de tokens UNA vez
+- **Refresh**: ante un 401 fuera de `/api/v1/auth/*`, `handleResponseError` renueva el par de tokens UNA vez
   (un solo refresh en vuelo compartido) y reintenta. Si falla, limpia la sesion y manda a `/login`
   (salvo que ya se este ahi).
 

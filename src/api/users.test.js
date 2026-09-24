@@ -36,7 +36,7 @@ describe('listUsers', () => {
 
     await listUsers({ page: 3, pageSize: 20, signal: controller.signal })
 
-    expect(get).toHaveBeenCalledWith('/api/users', { params: { page: 3, pageSize: 20 }, signal: controller.signal })
+    expect(get).toHaveBeenCalledWith('/api/v1/users', { params: { page: 3, pageSize: 20 }, signal: controller.signal })
   })
 
   it('un fallo de negocio del envelope se propaga como error', async () => {
@@ -49,12 +49,12 @@ describe('escrituras', () => {
   it('updateUser manda solo el nombre y escapa el id', async () => {
     const put = vi.spyOn(http, 'put').mockResolvedValue(axiosResponse({ isSuccess: true, data: null }))
     await updateUser('a/b', { fullName: 'Ana' })
-    expect(put).toHaveBeenCalledWith('/api/users/a%2Fb', { fullName: 'Ana' })
+    expect(put).toHaveBeenCalledWith('/api/v1/users/a%2Fb', { fullName: 'Ana' })
   })
 
   it('disableUser usa DELETE (baja logica en el backend)', async () => {
     const del = vi.spyOn(http, 'delete').mockResolvedValue(axiosResponse({ isSuccess: true, data: null }))
     await disableUser('abc')
-    expect(del).toHaveBeenCalledWith('/api/users/abc')
+    expect(del).toHaveBeenCalledWith('/api/v1/users/abc')
   })
 })

@@ -80,6 +80,7 @@ export const es = {
       emailRequired: 'Escribe tu correo.',
       emailInvalid: 'El correo no tiene un formato valido.',
       passwordRequired: 'Escribe tu contrasena.',
+      twoFactorUnsupported: 'Esta cuenta tiene verificacion en dos pasos, que esta plantilla todavia no soporta.',
     },
   },
   home: {

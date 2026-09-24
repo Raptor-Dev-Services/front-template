@@ -8,7 +8,7 @@ import { I18nProvider } from '../../i18n/I18nProvider.jsx'
 import { login } from '../../api/auth.js'
 import { clearSession } from '../../auth/session.js'
 
-vi.mock('../../api/auth.js', () => ({ login: vi.fn() }))
+vi.mock('../../api/auth.js', () => ({ login: vi.fn(), TWO_FACTOR_REQUIRED: 'TWO_FACTOR_REQUIRED' }))
 
 function renderLogin({ from } = {}) {
   render(

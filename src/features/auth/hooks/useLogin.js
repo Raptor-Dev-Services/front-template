@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import { login } from '../../../api/auth.js'
+import { login, TWO_FACTOR_REQUIRED } from '../../../api/auth.js'
 import { extractApiErrorMessage } from '../../../api/client.js'
 import { useI18n } from '../../../i18n/useI18n.js'
 import { useFormState } from '../../shared/hooks/useFormState.js'
@@ -36,10 +36,11 @@ export function useLogin() {
           await login({ email: v.email.trim(), password: v.password, rememberMe: v.rememberMe })
           return { ok: true }
         } catch (err) {
+          if (err?.code === TWO_FACTOR_REQUIRED) return { ok: false, message: t('auth.errors.twoFactorUnsupported') }
           return { ok: false, message: extractApiErrorMessage(err) }
         }
       }),
-    [submitForm],
+    [submitForm, t],
   )
 
   return { ...form, submit }

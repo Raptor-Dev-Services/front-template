@@ -185,12 +185,12 @@ describe('handleResponseError', () => {
       axiosResponse({ isSuccess: true, data: { accessToken: 'nuevo', refreshToken: 'r-nuevo' } }),
     )
     const retry = vi.spyOn(http, 'request').mockResolvedValue(axiosResponse({ isSuccess: true, data: 'ok' }))
-    const error = { config: { url: '/api/users', headers: {} }, response: { status: 401 } }
+    const error = { config: { url: '/api/v1/users', headers: {} }, response: { status: 401 } }
 
     const result = await handleResponseError(error)
 
     expect(postSpy).toHaveBeenCalledTimes(1)
-    expect(postSpy.mock.calls[0][0]).toBe('/api/auth/refresh')
+    expect(postSpy.mock.calls[0][0]).toBe('/api/v1/auth/refresh')
     expect(postSpy.mock.calls[0][1]).toMatchObject({ refreshToken: 'r-viejo' })
     expect(getAccessToken()).toBe('nuevo')
     expect(getRefreshToken()).toBe('r-nuevo')
@@ -217,7 +217,7 @@ describe('handleResponseError', () => {
     setTokens({ accessToken: 'viejo', refreshToken: 'r-vencido' })
     vi.spyOn(http, 'post').mockRejectedValue({ response: { status: 401 } })
     const assign = stubLocation('/users')
-    const error = { config: { url: '/api/users' }, response: { status: 401, data: {} } }
+    const error = { config: { url: '/api/v1/users' }, response: { status: 401, data: {} } }
 
     await expect(handleResponseError(error)).rejects.toBe(error)
 
@@ -230,7 +230,7 @@ describe('handleResponseError', () => {
     const assign = stubLocation('/login')
     setTokens({ accessToken: 'a', refreshToken: 'r' })
 
-    await expect(handleResponseError({ config: { url: '/api/users' }, response: { status: 401 } })).rejects.toBeTruthy()
+    await expect(handleResponseError({ config: { url: '/api/v1/users' }, response: { status: 401 } })).rejects.toBeTruthy()
 
     expect(assign).not.toHaveBeenCalled()
   })
@@ -239,7 +239,7 @@ describe('handleResponseError', () => {
     const postSpy = vi.spyOn(http, 'post')
     const assign = stubLocation('/login')
     const error = {
-      config: { url: '/api/auth/login' },
+      config: { url: '/api/v1/auth/login' },
       response: { status: 401, data: { isSuccess: false, message: 'Credenciales invalidas' } },
       message: 'Request failed with status code 401',
     }
@@ -253,7 +253,7 @@ describe('handleResponseError', () => {
 
   it('una peticion ya reintentada no vuelve a refrescar', async () => {
     const postSpy = vi.spyOn(http, 'post')
-    const error = { config: { url: '/api/users', _retry: true }, response: { status: 401 } }
+    const error = { config: { url: '/api/v1/users', _retry: true }, response: { status: 401 } }
     await expect(handleResponseError(error)).rejects.toBe(error)
     expect(postSpy).not.toHaveBeenCalled()
   })
