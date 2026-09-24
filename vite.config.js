@@ -2,6 +2,7 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
+import { cspMetaTag } from './vite/csp.js'
 
 // Puerto del servidor de desarrollo. 5173-5178 los ocupan otros productos de esta maquina
 // (devstack/PUERTOS.md del catalogo): por eso 5179, y `strictPort` para que Vite FALLE si esta
@@ -14,7 +15,9 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
   return {
-    plugins: [react(), tailwindcss()],
+    // cspMetaTag solo aplica en `build`: inyecta la Content-Security-Policy como <meta> dentro del
+    // artefacto, derivada de VITE_API_BASE_URL / VITE_AUTH_ORIGIN (ver vite/csp.js).
+    plugins: [react(), tailwindcss(), cspMetaTag()],
 
     resolve: {
       alias: {

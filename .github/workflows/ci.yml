@@ -1,0 +1,82 @@
+# Quality gate del frontend: corre en cada PR y en push a main (regla ci-quality-gates).
+# Puertas: lint + build + pruebas en verde antes de mergear, y el historial sin secretos.
+# El despliegue no vive aqui (depende del hosting de cada producto): esto solo valida el codigo.
+#
+# Deuda conocida: las acciones van fijadas por etiqueta mayor (`@v4`), que es mutable. Fijarlas por
+# SHA esta pendiente, igual que en el resto de los repos del catalogo.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# Cancela corridas viejas de la misma rama/PR si llega un push nuevo.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: lint + build + test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          # La misma mayor que la imagen de Docker (node:22-alpine).
+          node-version: '22'
+          cache: npm
+
+      # ci (no install): respeta el lockfile, reproducible.
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+      # --- Puerta de seguridad (regla security-review-checklist) ------------------------------------
+      # ADVISORY: avisa y no bloquea. Se gradua a bloqueante tras medir falsos positivos, que es el
+      # orden que manda la regla (advisory -> soft-mandatory -> hard-mandatory). --omit=dev NO se usa a
+      # proposito: una CVE en la cadena de build no llega al usuario, pero si al servidor de build.
+      - name: SCA - dependencias vulnerables (advisory)
+        continue-on-error: true
+        run: npm audit --audit-level=high
+
+  secretos:
+    name: escaneo de secretos (bloqueante)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # fetch-depth: 0 -> gitleaks recorre el HISTORIAL, no solo el arbol de trabajo. Un secreto
+      # borrado en un commit posterior sigue estando en los anteriores y en cada clon.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Binario oficial con version fijada (pin exacto, nunca `latest` en un control).
+      - name: Instalar gitleaks
+        run: |
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz gitleaks
+          sudo install -m 0755 gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+        env:
+          GITLEAKS_VERSION: 8.30.1
+
+      # --redact: el hallazgo NO se imprime en claro en el log de CI. Reportar un secreto filtrandolo
+      # otra vez seria absurdo.
+      - name: Escanear historial y arbol
+        run: gitleaks detect --no-banner --redact --verbose

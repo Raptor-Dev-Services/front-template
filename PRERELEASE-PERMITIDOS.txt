@@ -1,0 +1,6 @@
+# Excepciones a la puerta de dependencias inestables (scripts/check-prerelease-deps.py).
+# Formato: ecosistema | paquete | version | motivo | revisar en YYYY-MM-DD
+#
+# La unica entrada NO es una dependencia de la app: es el package.json de una demo dentro de la
+# libreria de referencia docs/Tailwind Plus, que se consulta y nunca se instala ni se compila.
+npm | @tailwindplus/elements | 0.0.0-insiders.98ea4bc | demo de la libreria de referencia docs/Tailwind Plus; no se instala ni entra al bundle | 2027-03-24
