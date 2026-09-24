@@ -1,1 +1,492 @@
-@import "tailwindcss";
+@import 'tailwindcss';
+
+/*
+  Tema claro/oscuro controlado por la APLICACION (skill theming-dark-mode del catalogo):
+  - La variante `dark:` responde a [data-theme="dark"] en <html>, que estampa el script de index.html
+    antes del primer pintado y despues ThemeProvider. NO a la preferencia del sistema: atarla al
+    sistema dispara variantes oscuras que la app no pidio.
+  - Los tokens semanticos (surface/content/border/primary/...) flipan por variable CSS, asi que las
+    pantallas usan `bg-surface text-content` y heredan el tema sin escribir `dark:`.
+*/
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/* --------------------------------------------------------------------------
+   Tokens (espejo de src/styles/designSystem.js). Valores de TEMA CLARO.
+   Paleta NEUTRA a proposito: la plantilla no tiene marca. Para darsela a un producto se cambia la
+   escala --color-brand-* y --color-primary*; nada mas en el codigo sabe de colores.
+   -------------------------------------------------------------------------- */
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  /* Escala de marca (zinc). FIJA en los dos temas: se usa como fondo y como relleno; para TEXTO de
+     marca esta --color-brand-text, que si flipa. */
+  --color-brand-50: #fafafa;
+  --color-brand-100: #f4f4f5;
+  --color-brand-200: #e4e4e7;
+  --color-brand-300: #d4d4d8;
+  --color-brand-400: #a1a1aa;
+  --color-brand-500: #71717a;
+  --color-brand-600: #52525b;
+  --color-brand-700: #3f3f46;
+  --color-brand-800: #27272a;
+  --color-brand-900: #18181b;
+  --color-brand-950: #09090b;
+
+  /* Semanticos (flipan en los bloques oscuros de abajo). */
+  --color-surface: #ffffff;
+  --color-surface-muted: #fafafa;
+  --color-surface-raised: #ffffff;
+  --color-content: #18181b;
+  --color-muted: #52525b;
+  /* Solo placeholders y decoracion: no cumple AA como texto y no se usa para texto que haya que leer. */
+  --color-subtle: #a1a1aa;
+  --color-border: #e4e4e7;
+  --color-border-strong: #d4d4d8;
+  --color-brand-soft: #f4f4f5;
+  --color-brand-text: #18181b;
+  /* Anillo de foco: contraste >= 3:1 contra las superficies en los dos temas (WCAG 1.4.11). */
+  --color-focus: #52525b;
+
+  /* Accion principal. Se INVIERTE en oscuro (claro sobre oscuro), como pide la skill de theming. */
+  --color-primary: #18181b;
+  --color-primary-hover: #3f3f46;
+  --color-primary-fg: #ffffff;
+
+  /* Estado. Se acompanan SIEMPRE de icono o texto: el color nunca es el unico portador (WCAG 1.4.1).
+     Flipan por tema para seguir cumpliendo AA como texto sobre las superficies. */
+  --color-success: #047857;
+  --color-warning: #92400e;
+  --color-error: #b91c1c;
+  --color-info: #1d4ed8;
+  /* Relleno del boton destructivo (texto blanco encima: AA en los dos temas). */
+  --color-danger-fill: #b91c1c;
+  --color-danger-fill-hover: #991b1b;
+
+  /* Radios */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  /* Sombras: solo para lo que de verdad flota (modal, drawer, menu). */
+  --shadow-sm: 0 1px 2px 0 rgb(9 9 11 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(9 9 11 / 0.08);
+  --shadow-lg: 0 10px 15px -3px rgb(9 9 11 / 0.1);
+  --shadow-xl: 0 20px 40px -12px rgb(9 9 11 / 0.2);
+
+  /* Easing custom (los built-in son demasiado debiles para UI). */
+  --ease-out-soft: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-soft: cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+/* --------------------------------------------------------------------------
+   TEMA OSCURO. Dos bloques con los MISMOS valores:
+   - @media: sistema en oscuro y el usuario no forzo claro. Solo cubre el instante antes de que el
+     script de index.html estampe data-theme (y el caso de JS deshabilitado).
+   - [data-theme='dark']: eleccion explicita. Es el que manda en la app.
+   Si cambias uno, cambia el otro (contrasteDeTokens.test.js lee el segundo).
+   -------------------------------------------------------------------------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    /* Controles nativos (checkbox, radio, date picker, scrollbars) con su paleta oscura. */
+    color-scheme: dark;
+    --color-surface: #09090b;
+    --color-surface-muted: #18181b;
+    --color-surface-raised: #1c1c1f;
+    --color-content: #fafafa;
+    --color-muted: #a1a1aa;
+    --color-subtle: #71717a;
+    --color-border: #27272a;
+    --color-border-strong: #3f3f46;
+    --color-brand-soft: rgba(255, 255, 255, 0.08);
+    --color-brand-text: #fafafa;
+    --color-focus: #a1a1aa;
+    --color-primary: #fafafa;
+    --color-primary-hover: #e4e4e7;
+    --color-primary-fg: #09090b;
+    --color-success: #34d399;
+    --color-warning: #fbbf24;
+    --color-error: #f87171;
+    --color-info: #60a5fa;
+    --color-danger-fill: #dc2626;
+    --color-danger-fill-hover: #b91c1c;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-surface: #09090b;
+  --color-surface-muted: #18181b;
+  --color-surface-raised: #1c1c1f;
+  --color-content: #fafafa;
+  --color-muted: #a1a1aa;
+  --color-subtle: #71717a;
+  --color-border: #27272a;
+  --color-border-strong: #3f3f46;
+  --color-brand-soft: rgba(255, 255, 255, 0.08);
+  --color-brand-text: #fafafa;
+  --color-focus: #a1a1aa;
+  --color-primary: #fafafa;
+  --color-primary-hover: #e4e4e7;
+  --color-primary-fg: #09090b;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-error: #f87171;
+  --color-info: #60a5fa;
+  --color-danger-fill: #dc2626;
+  --color-danger-fill-hover: #b91c1c;
+}
+
+/* --------------------------------------------------------------------------
+   Base
+   -------------------------------------------------------------------------- */
+@layer base {
+  html {
+    /* Paleta clara para los controles nativos por defecto; los bloques oscuros la cambian. Explicito
+       para cubrir tambien [data-theme='light'] con el sistema en oscuro. */
+    color-scheme: light;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background-color: var(--color-surface);
+    color: var(--color-content);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background-color: var(--color-brand-200);
+    color: var(--color-brand-900);
+  }
+
+  /* Foco visible consistente en TODO lo interactivo. :where() deja la especificidad en cero para
+     que un componente pueda afinarlo sin !important. */
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Clases compartidas .ui-* (capa components: las utilidades pueden sobreescribirlas).
+   Las consumen las primitivas de src/ui; una pantalla no deberia necesitar escribirlas a mano.
+   -------------------------------------------------------------------------- */
+@layer components {
+  .ui-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    /* Area tactil >= 44px (WCAG 2.5.5). */
+    min-height: 44px;
+    padding: 0 1.125rem;
+    border-radius: var(--radius-lg);
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    border: 1px solid transparent;
+    text-decoration: none;
+    white-space: nowrap;
+    transition:
+      transform 150ms var(--ease-out-soft),
+      background-color 150ms var(--ease-out-soft),
+      color 150ms var(--ease-out-soft),
+      border-color 150ms var(--ease-out-soft);
+  }
+
+  .ui-btn:active {
+    transform: scale(0.97);
+  }
+
+  .ui-btn:disabled,
+  .ui-btn[aria-disabled='true'] {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .ui-btn-primary {
+    background-color: var(--color-primary);
+    color: var(--color-primary-fg);
+  }
+  .ui-btn-primary:hover:not(:disabled) {
+    background-color: var(--color-primary-hover);
+  }
+
+  .ui-btn-secondary {
+    background-color: var(--color-surface);
+    color: var(--color-content);
+    border-color: var(--color-border-strong);
+  }
+  .ui-btn-secondary:hover:not(:disabled) {
+    background-color: var(--color-surface-muted);
+  }
+
+  /* Solo para acciones destructivas. Solido: tiene que leerse distinto del primario a primera vista. */
+  .ui-btn-danger {
+    background-color: var(--color-danger-fill);
+    color: #ffffff;
+  }
+  .ui-btn-danger:hover:not(:disabled) {
+    background-color: var(--color-danger-fill-hover);
+  }
+
+  .ui-btn-ghost {
+    background-color: transparent;
+    color: var(--color-content);
+  }
+  .ui-btn-ghost:hover:not(:disabled) {
+    background-color: var(--color-surface-muted);
+  }
+
+  .ui-btn-sm {
+    min-height: 36px;
+    padding: 0 0.875rem;
+  }
+
+  /* Superficie con borde. Regla ui-layout-first: solo para un objeto repetible y comparable entre
+     pares (una tarjeta en una rejilla), algo que flota o algo clickeable como un todo. Para agrupar
+     una ZONA de la pagina va `.ui-section`. */
+  .ui-card {
+    background-color: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+  }
+
+  /* Zona de una pagina: la separa una linea, no un rectangulo. La linea va arriba y solo entre
+     hermanas. No define display/gap/padding a proposito: la pagina espacia por dentro. */
+  .ui-section + .ui-section {
+    border-top: 1px solid var(--color-border);
+    padding-top: 1.75rem;
+    margin-top: 0.25rem;
+  }
+
+  /* Campo de formulario (input / select / textarea). Fuente unica del estilo de campo. */
+  .ui-input {
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    padding: 0.625rem 0.75rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border-strong);
+    background-color: var(--color-surface);
+    color: var(--color-content);
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    transition:
+      box-shadow 150ms var(--ease-out-soft),
+      border-color 150ms var(--ease-out-soft);
+  }
+  .ui-input::placeholder {
+    color: var(--color-subtle);
+  }
+  .ui-input:focus {
+    outline: none;
+    border-color: var(--color-focus);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-focus) 45%, transparent);
+  }
+  /* Estado de error: lo activa el mismo aria-invalid que ya exige la accesibilidad. */
+  .ui-input[aria-invalid='true'] {
+    border-color: var(--color-error);
+  }
+  .ui-input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .ui-checkbox {
+    width: 1.125rem;
+    height: 1.125rem;
+    accent-color: var(--color-primary);
+  }
+
+  /* Boton-icono cuadrado (editar, cerrar, toggles). El nombre accesible lo pone IconButton. */
+  .ui-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    background-color: transparent;
+    color: var(--color-muted);
+    cursor: pointer;
+    transition:
+      color 150ms var(--ease-out-soft),
+      background-color 150ms var(--ease-out-soft),
+      border-color 150ms var(--ease-out-soft);
+  }
+  .ui-icon-btn:hover:not(:disabled) {
+    background-color: var(--color-surface-muted);
+    color: var(--color-content);
+  }
+  .ui-icon-btn:active {
+    transform: scale(0.97);
+  }
+  .ui-icon-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .ui-eyebrow {
+    display: inline-block;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+
+  .ui-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    background-color: var(--color-brand-soft);
+    color: var(--color-brand-text);
+    border: 1px solid var(--color-border);
+  }
+
+  /* Pildora de estado. La consume StatusBadge, que siempre lleva el texto traducido: el tono solo
+     refuerza. El tono se elige con data-tone. */
+  .ui-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.625rem;
+    border-radius: 9999px;
+    border: 1px solid var(--color-border);
+    background-color: var(--color-surface-muted);
+    color: var(--color-muted);
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .ui-badge[data-tone='success'] {
+    background-color: color-mix(in srgb, var(--color-success) 10%, transparent);
+    border-color: color-mix(in srgb, var(--color-success) 30%, transparent);
+    color: var(--color-success);
+  }
+  .ui-badge[data-tone='warning'] {
+    background-color: color-mix(in srgb, var(--color-warning) 10%, transparent);
+    border-color: color-mix(in srgb, var(--color-warning) 30%, transparent);
+    color: var(--color-warning);
+  }
+  .ui-badge[data-tone='danger'] {
+    background-color: color-mix(in srgb, var(--color-error) 10%, transparent);
+    border-color: color-mix(in srgb, var(--color-error) 30%, transparent);
+    color: var(--color-error);
+  }
+  .ui-badge[data-tone='info'] {
+    background-color: color-mix(in srgb, var(--color-info) 10%, transparent);
+    border-color: color-mix(in srgb, var(--color-info) 30%, transparent);
+    color: var(--color-info);
+  }
+  .ui-badge-icon {
+    width: 0.875rem;
+    height: 0.875rem;
+    flex-shrink: 0;
+  }
+
+  /* Banner de mensaje en linea (error de formulario, aviso de exito). Lo semantico (role) lo pone
+     quien lo usa; esto es solo el estilo por tono. */
+  .ui-alert {
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
+  }
+  .ui-alert[data-tone='danger'] {
+    border-color: color-mix(in srgb, var(--color-error) 40%, transparent);
+    background-color: color-mix(in srgb, var(--color-error) 8%, transparent);
+    color: var(--color-error);
+  }
+  .ui-alert[data-tone='success'] {
+    border-color: color-mix(in srgb, var(--color-success) 40%, transparent);
+    background-color: color-mix(in srgb, var(--color-success) 8%, transparent);
+    color: var(--color-success);
+  }
+
+  /* Barra de avance. La consume ProgressBar, que aporta rol y etiquetas accesibles. */
+  .ui-meter {
+    display: block;
+    width: 100%;
+    height: 0.5rem;
+    overflow: hidden;
+    border-radius: 9999px;
+    background-color: var(--color-surface-muted);
+    border: 1px solid var(--color-border);
+  }
+  .ui-meter-fill {
+    display: block;
+    height: 100%;
+    border-radius: 9999px;
+    background-color: var(--color-primary);
+    transition: width 300ms var(--ease-out-soft);
+  }
+  .ui-meter-fill[data-tone='success'] {
+    background-color: var(--color-success);
+  }
+  .ui-meter-fill[data-tone='warning'] {
+    background-color: var(--color-warning);
+  }
+  .ui-meter-fill[data-tone='danger'] {
+    background-color: var(--color-error);
+  }
+
+  /* Enlace de salto al contenido: invisible hasta que recibe foco con el teclado. */
+  .ui-skip-link {
+    position: absolute;
+    left: 1rem;
+    top: -4rem;
+    z-index: 50;
+    border-radius: var(--radius-lg);
+    background-color: var(--color-primary);
+    color: var(--color-primary-fg);
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+  .ui-skip-link:focus {
+    top: 1rem;
+  }
+
+  /* Ilustracion de la pantalla de error: flota despacio para bajar la tension. */
+  .ui-float {
+    animation: ui-float 3.2s var(--ease-in-out-soft) infinite alternate;
+  }
+}
+
+@keyframes ui-float {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-8px);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   prefers-reduced-motion - obligatorio en todo lo que anima.
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

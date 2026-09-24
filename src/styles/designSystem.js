@@ -1,7 +1,17 @@
+// designSystem.js - helper `cx` y, TEMPORALMENTE, el objeto `ui` de la primera version.
+//
+// Los tokens viven en src/index.css (@theme) con su espejo en ./tokens.js, y se consumen como
+// utilidades semanticas (bg-surface, text-content...) o por las primitivas de src/ui.
+//
+// `ui` es LEGADO: solo lo usan las pantallas de la primera version de la plantilla, que se reemplazan
+// en el siguiente commit. No lo uses en codigo nuevo.
+
+/** Une clases condicionales, descartando las falsy: cx('a', cond && 'b'). */
 export function cx(...classes) {
   return classes.filter(Boolean).join(' ')
 }
 
+/** @deprecated legado de la v1; se elimina junto con las pantallas que lo usan. */
 export const ui = {
   layout: {
     appSection:   'flex min-h-[calc(100vh-6.5rem)] flex-col gap-4 text-slate-900 sm:gap-5 lg:gap-6',
